@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Dict, Any
 
 EXPOSURE_CONSTANTS: Dict[str, Any] = {
-    "cmy_max_density": 0.1,
+    "cmy_max_density": 0.2,
     "density_multiplier": 0.2,
     "grade_multiplier": 2.0,
     "target_paper_range": 2.2,

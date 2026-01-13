@@ -19,13 +19,16 @@ class NormalizationProcessor:
         epsilon = 1e-6
         img_log = np.log10(np.clip(image, epsilon, 1.0))
 
-        analysis_img = img_log
-        if context.active_roi:
-            y1, y2, x1, x2 = context.active_roi
-            analysis_img = img_log[y1:y2, x1:x2]
+        if "log_bounds" in context.metrics:
+            bounds = context.metrics["log_bounds"]
+        else:
+            analysis_img = img_log
+            if context.active_roi:
+                y1, y2, x1, x2 = context.active_roi
+                analysis_img = img_log[y1:y2, x1:x2]
 
-        bounds = measure_log_negative_bounds(analysis_img)
-        context.metrics["log_bounds"] = bounds
+            bounds = measure_log_negative_bounds(analysis_img)
+            context.metrics["log_bounds"] = bounds
 
         return normalize_log_image(img_log, bounds)
 

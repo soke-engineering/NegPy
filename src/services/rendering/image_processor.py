@@ -20,6 +20,7 @@ from src.kernel.image.logic import (
     float_to_uint_luma,
 )
 from src.infrastructure.loaders.factory import loader_factory
+from src.infrastructure.loaders.helpers import get_best_demosaic_algorithm
 
 logger = get_logger(__name__)
 
@@ -38,6 +39,7 @@ class ImageProcessor:
         settings: WorkspaceConfig,
         source_hash: str,
         render_size_ref: float,
+        metrics: Optional[Dict[str, Any]] = None,
     ) -> Tuple[ImageBuffer, Dict[str, Any]]:
         """
         Executes the engine, returns buffer + metrics.
@@ -49,6 +51,8 @@ class ImageProcessor:
             original_size=(h_orig, w_cols),
             process_mode=settings.process_mode,
         )
+        if metrics:
+            context.metrics.update(metrics)
 
         processed = self.engine.process(img, settings, source_hash, context)
         return processed, context.metrics
@@ -94,6 +98,7 @@ class ImageProcessor:
         params: WorkspaceConfig,
         export_settings: ExportConfig,
         source_hash: str,
+        metrics: Optional[Dict[str, Any]] = None,
     ) -> Tuple[Optional[bytes], str]:
         """
         Full-res render + encoding (TIFF/JPEG).
@@ -105,7 +110,7 @@ class ImageProcessor:
                 raw_color_space = rawpy.ColorSpace.Adobe
 
             with loader_factory.get_loader(file_path) as raw:
-                algo = self._get_best_demosaic_algorithm(raw)
+                algo = get_best_demosaic_algorithm(raw)
                 rgb = raw.postprocess(
                     gamma=(1, 1),
                     no_auto_bright=True,
@@ -125,6 +130,7 @@ class ImageProcessor:
                 params,
                 source_hash,
                 render_size_ref=float(APP_CONFIG.preview_render_size),
+                metrics=metrics,
             )
 
             buffer = self._apply_scaling_and_border_f32(buffer, params, export_settings)
@@ -176,14 +182,6 @@ class ImageProcessor:
         except Exception as e:
             logger.error(f"Export Processing Error: {e}")
             return None, str(e)
-
-    def _get_best_demosaic_algorithm(self, raw: Any) -> Any:
-        try:
-            if raw.raw_type == rawpy.RawType.XTrans:
-                return rawpy.DemosaicAlgorithm.XT_3PASS
-            return rawpy.DemosaicAlgorithm.LMMSE
-        except AttributeError:
-            return None
 
     def _apply_scaling_and_border_f32(
         self, img: np.ndarray, params: WorkspaceConfig, export_settings: ExportConfig

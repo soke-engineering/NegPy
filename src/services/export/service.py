@@ -1,7 +1,7 @@
 import os
 import time
 import asyncio
-from typing import List, Dict, Any, Callable
+from typing import List, Dict, Any, Callable, Optional
 import streamlit as st
 from src.domain.models import WorkspaceConfig, ExportConfig
 from src.services.export.templating import FilenameTemplater
@@ -22,6 +22,7 @@ class ExportService:
         file_meta: Dict[str, str],
         f_params: WorkspaceConfig,
         export_settings: ExportConfig,
+        metrics: Optional[Dict[str, Any]] = None,
     ) -> str:
         """
         Renders and saves a single file.
@@ -30,7 +31,11 @@ class ExportService:
         templater_instance = FilenameTemplater()
 
         res = image_service.process_export(
-            file_path, f_params, export_settings, source_hash=file_meta["hash"]
+            file_path,
+            f_params,
+            export_settings,
+            source_hash=file_meta["hash"],
+            metrics=metrics,
         )
 
         img_bytes, ext = res
@@ -76,8 +81,10 @@ class ExportService:
             filename_pattern=sidebar_data.filename_pattern,
         )
 
+        metrics = st.session_state.get("last_metrics")
+
         return ExportService._export_one(
-            file_meta["path"], file_meta, f_params, export_settings
+            file_meta["path"], file_meta, f_params, export_settings, metrics=metrics
         )
 
     @staticmethod

@@ -64,6 +64,13 @@ class AppController:
             self.ctx.original_res = dims
             self.ctx.last_file = current_file["name"]
             self.ctx.last_preview_color_space = current_color_space
+            
+            # Clear stale metrics
+            if "last_metrics" in st.session_state:
+                del st.session_state.last_metrics
+            if "base_positive" in st.session_state:
+                del st.session_state.base_positive
+
             return True
         return False
 

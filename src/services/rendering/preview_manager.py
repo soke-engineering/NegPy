@@ -5,6 +5,7 @@ from typing import Tuple
 from src.kernel.system.config import APP_CONFIG
 from src.kernel.image.logic import ensure_rgb, uint16_to_float32
 from src.infrastructure.loaders.factory import loader_factory
+from src.infrastructure.loaders.helpers import get_best_demosaic_algorithm
 from src.domain.types import ImageBuffer, Dimensions
 from src.kernel.image.validation import ensure_image
 
@@ -26,6 +27,7 @@ class PreviewManager:
             raw_color_space = rawpy.ColorSpace.Adobe
 
         with loader_factory.get_loader(file_path) as raw:
+            algo = get_best_demosaic_algorithm(raw)
             rgb = raw.postprocess(
                 gamma=(1, 1),
                 no_auto_bright=True,
@@ -33,7 +35,7 @@ class PreviewManager:
                 user_wb=[1, 1, 1, 1],
                 output_bps=16,
                 output_color=raw_color_space,
-                demosaic_algorithm=rawpy.DemosaicAlgorithm.LINEAR,
+                demosaic_algorithm=algo,
             )
             rgb = ensure_rgb(rgb)
 
