@@ -75,6 +75,19 @@ def _sync_shadow_state(key: str, current_val: Any) -> str:
     return w_key
 
 
+def sync_state(key: str) -> None:
+    """
+    Callback to sync shadow widget state back to canonical state.
+    Used to prevent one-frame lag in rendering.
+    """
+    w_key = f"w_{key}"
+    if w_key in st.session_state:
+        val = st.session_state[w_key]
+        st.session_state[key] = val
+        st.session_state[f"last_{key}"] = val
+        save_settings()
+
+
 def _update_canonical_state(key: str, new_val: Any, old_val: Any) -> Any:
     """
     Internal helper:
@@ -98,6 +111,7 @@ def render_control_slider(
     help_text: Optional[str] = None,
     format: str = "%.2f",
     disabled: bool = False,
+    on_change: Optional[Callable] = None,
 ) -> float:
     """
     Standard sidebar slider. Handles state sync.
@@ -108,6 +122,11 @@ def render_control_slider(
 
     w_key = _sync_shadow_state(key, current_val)
 
+    def _on_change_cb() -> None:
+        sync_state(key)
+        if on_change:
+            on_change()
+
     res = st.slider(
         label,
         min_value=float(min_val),
@@ -117,6 +136,7 @@ def render_control_slider(
         format=format,
         key=w_key,
         help=help_text,
+        on_change=_on_change_cb,
         disabled=disabled,
     )
 
@@ -143,6 +163,11 @@ def render_control_checkbox(
     current_val = _ensure_and_get_state(key, default_val, bool)
     w_key = _sync_shadow_state(key, current_val)
 
+    def _on_change_cb() -> None:
+        sync_state(key)
+        if on_change:
+            on_change()
+
     if is_toggle:
         res = st.toggle(
             label,
@@ -150,7 +175,7 @@ def render_control_checkbox(
             key=w_key,
             help=help_text,
             disabled=disabled,
-            on_change=on_change,
+            on_change=_on_change_cb,
             label_visibility=label_visibility,
         )
     else:
@@ -160,7 +185,7 @@ def render_control_checkbox(
             key=w_key,
             help=help_text,
             disabled=disabled,
-            on_change=on_change,
+            on_change=_on_change_cb,
             label_visibility=label_visibility,
         )
 
@@ -186,6 +211,11 @@ def render_control_selectbox(
     current_val = _ensure_and_get_state(key, default_val, lambda x: x)  # No-op cast
     w_key = _sync_shadow_state(key, current_val)
 
+    def _on_change_cb(*cb_args: Any, **cb_kwargs: Any) -> None:
+        sync_state(key)
+        if on_change:
+            on_change(*cb_args, **cb_kwargs)
+
     try:
         idx = options.index(current_val)
     except ValueError:
@@ -199,7 +229,7 @@ def render_control_selectbox(
         help=help_text,
         disabled=disabled,
         format_func=format_func,
-        on_change=on_change,
+        on_change=_on_change_cb,
         args=args,
         kwargs=kwargs,
         label_visibility=label_visibility,
@@ -216,6 +246,7 @@ def render_control_radio(
     help_text: Optional[str] = None,
     disabled: bool = False,
     format_func: Any = str,
+    on_change: Optional[Callable] = None,
     horizontal: bool = True,
     label_visibility: Literal["visible", "hidden", "collapsed"] = "visible",
 ) -> Any:
@@ -224,6 +255,11 @@ def render_control_radio(
     """
     current_val = _ensure_and_get_state(key, default_val, lambda x: x)
     w_key = _sync_shadow_state(key, current_val)
+
+    def _on_change_cb() -> None:
+        sync_state(key)
+        if on_change:
+            on_change()
 
     try:
         idx = options.index(current_val)
@@ -238,6 +274,7 @@ def render_control_radio(
         help=help_text,
         disabled=disabled,
         format_func=format_func,
+        on_change=_on_change_cb,
         horizontal=horizontal,
         label_visibility=label_visibility,
     )

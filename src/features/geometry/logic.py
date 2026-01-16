@@ -90,21 +90,47 @@ def enforce_roi_aspect_ratio(
 def get_manual_rect_coords(
     img: ImageBuffer,
     manual_rect: Tuple[float, float, float, float],
+    orig_shape: Tuple[int, int],
+    rotation_k: int = 0,
+    fine_rotation: float = 0.0,
+    flip_horizontal: bool = False,
+    flip_vertical: bool = False,
     offset_px: int = 0,
     scale_factor: float = 1.0,
 ) -> ROI:
     """
-    Maps normalized manual crop rect to pixel ROI.
+    Maps normalized manual crop rect (RAW coords) to pixel ROI in TRANSFORMED image space.
     """
-    h, w = img.shape[:2]
+    h_curr, w_curr = img.shape[:2]
     x1_n, y1_n, x2_n, y2_n = manual_rect
 
-    ix1, ix2 = sorted([int(x1_n * w), int(x2_n * w)])
-    iy1, iy2 = sorted([int(y1_n * h), int(y2_n * h)])
+    # Map all 4 corners to handle rotation correctly
+    corners = [(x1_n, y1_n), (x2_n, y1_n), (x2_n, y2_n), (x1_n, y2_n)]
+    mapped_corners = []
+
+    for nx, ny in corners:
+        mx, my = map_coords_to_geometry(
+            nx,
+            ny,
+            orig_shape,
+            rotation_k,
+            fine_rotation,
+            flip_horizontal,
+            flip_vertical,
+            roi=None,  # We are calculating the ROI, not applying it yet
+        )
+        mapped_corners.append((mx, my))
+
+    # Find bounding box of mapped corners in current image space
+    xs = [p[0] * w_curr for p in mapped_corners]
+    ys = [p[1] * h_curr for p in mapped_corners]
+
+    ix1, ix2 = int(min(xs)), int(max(xs))
+    iy1, iy2 = int(min(ys)), int(max(ys))
 
     roi = (iy1, iy2, ix1, ix2)
     margin = offset_px * scale_factor
-    return apply_margin_to_roi(roi, h, w, margin)
+    return apply_margin_to_roi(roi, h_curr, w_curr, margin)
 
 
 def get_manual_crop_coords(

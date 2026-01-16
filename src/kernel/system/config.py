@@ -44,8 +44,9 @@ DEFAULT_WORKSPACE_CONFIG = WorkspaceConfig(
         keep_full_frame=False,
     ),
     lab=LabConfig(
-        color_separation=2.0,
+        color_separation=1.0,
         clahe_strength=0.0,
+        saturation=1.0,
         sharpen=0.25,
     ),
     toning=ToningConfig(

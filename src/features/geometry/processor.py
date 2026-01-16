@@ -19,6 +19,7 @@ class GeometryProcessor:
         self.config = config
 
     def process(self, image: ImageBuffer, context: PipelineContext) -> ImageBuffer:
+        orig_shape = (image.shape[0], image.shape[1])
         img = image
 
         if self.config.rotation != 0:
@@ -44,7 +45,12 @@ class GeometryProcessor:
             roi = get_manual_rect_coords(
                 img,
                 self.config.manual_crop_rect,
-                offset_px=self.config.autocrop_offset,
+                orig_shape=orig_shape,
+                rotation_k=self.config.rotation,
+                fine_rotation=self.config.fine_rotation,
+                flip_horizontal=self.config.flip_horizontal,
+                flip_vertical=self.config.flip_vertical,
+                offset_px=0,
                 scale_factor=context.scale_factor,
             )
             context.active_roi = roi
