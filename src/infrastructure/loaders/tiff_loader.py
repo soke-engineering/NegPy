@@ -1,6 +1,6 @@
 import numpy as np
 import imageio.v3 as iio
-from typing import Any, ContextManager
+from typing import Any, ContextManager, Tuple
 from src.domain.interfaces import IImageLoader
 from src.kernel.image.logic import uint8_to_float32, uint16_to_float32
 
@@ -36,7 +36,7 @@ class TiffLoader(IImageLoader):
     Loader for TIFF scans.
     """
 
-    def load(self, file_path: str) -> ContextManager[Any]:
+    def load(self, file_path: str) -> Tuple[ContextManager[Any], dict]:
         img = iio.imread(file_path)
         if img.ndim == 2:
             img = np.stack([img] * 3, axis=-1)
@@ -50,4 +50,5 @@ class TiffLoader(IImageLoader):
         else:
             f32 = np.clip(img.astype(np.float32), 0, 1)
 
-        return NonStandardFileWrapper(f32)
+        metadata = {"orientation": 0}
+        return NonStandardFileWrapper(f32), metadata

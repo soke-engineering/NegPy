@@ -10,8 +10,6 @@ from src.ui.components.sidebar.lab_scanner_ui import (
 from src.ui.components.sidebar.retouch_ui import render_retouch_section
 from src.ui.components.sidebar.export_ui import render_export_section
 from src.ui.components.sidebar.presets_ui import render_presets
-from src.ui.components.sidebar.navigation_ui import render_navigation
-from src.ui.components.sidebar.geometry_ui import render_geometry_section
 from src.ui.components.sidebar.analysis_ui import render_analysis_section
 from src.ui.components.sidebar.icc_ui import render_icc_section
 from src.ui.components.sidebar.helpers import (
@@ -31,10 +29,6 @@ def render_adjustments() -> SidebarState:
         help_text="Choose processing mode between Color Negative (C41) and B&W Negative",
     )
 
-    # Navigation buttons (Back, Forward, Rotate, Delete, Copy, Paste, Reset, Export)
-    export_btn_sidebar, process_all_btn = render_navigation()
-
-    render_geometry_section()
     render_presets()
     render_analysis_section()
     render_exposure_section()
@@ -45,7 +39,5 @@ def render_adjustments() -> SidebarState:
     render_icc_section()
 
     export_data = render_export_section()
-    export_data.export_btn = export_btn_sidebar
-    export_data.process_btn = process_all_btn
 
     return export_data

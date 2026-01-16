@@ -8,10 +8,10 @@ def render_lab_scanner_section() -> None:
     is_bw = st.session_state.get("process_mode") == "B&W"
 
     with st.expander(":material/scanner: Lab Scanner Parameters", expanded=True):
-        c1, c2, c3 = st.columns(3)
+        c1, c2 = st.columns(2)
 
-        with c1:
-            if not is_bw:
+        if not is_bw:
+            with c1:
                 render_control_slider(
                     label="Color Separation",
                     min_val=1.0,
@@ -22,6 +22,7 @@ def render_lab_scanner_section() -> None:
                     format="%.2f",
                     help_text="Color matrix strength (un-mixing dyes).",
                 )
+            with c2:
                 render_control_slider(
                     label="Saturation",
                     min_val=0.0,
@@ -32,10 +33,11 @@ def render_lab_scanner_section() -> None:
                     format="%.2f",
                     help_text="Adjusts color intensity.",
                 )
-            else:
-                st.write("")
+        else:
+            st.write("")
 
-        with c2:
+        c3, c4 = st.columns(2)
+        with c3:
             render_control_slider(
                 label="CLAHE",
                 min_val=0.0,
@@ -47,7 +49,7 @@ def render_lab_scanner_section() -> None:
                 help_text="Increases local contrast.",
             )
 
-        with c3:
+        with c4:
             render_control_slider(
                 label="Luma Sharpening",
                 min_val=0.0,

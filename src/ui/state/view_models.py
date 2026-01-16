@@ -29,8 +29,7 @@ class SidebarState:
     apply_icc: bool = False
     icc_profile_path: Optional[str] = None
     icc_invert: bool = False
-    process_btn: bool = False
-    export_btn: bool = False
+    process_all_btn: bool = False
 
 
 class IViewModel(Protocol):

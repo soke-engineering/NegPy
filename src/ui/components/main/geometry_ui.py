@@ -15,9 +15,13 @@ def render_geometry_section() -> None:
     geo_vm = GeometryViewModel()
     geo_conf = geo_vm.to_config()
 
-    with st.expander(":material/crop: Geometry", expanded=True):
-        c_mode1, c_mode2 = st.columns(2)
-        with c_mode1:
+    with st.container(border=True):
+        st.markdown("**:material/crop: Geometry**")
+
+        # Row 1: Crop Mode, Ratio/Pick Crop, Assist/Reset, Keep Borders
+        c1, c2, c3, c4 = st.columns(4)
+
+        with c1:
             crop_modes = list(CropMode)
             current_mode = geo_vm.crop_mode
 
@@ -26,7 +30,7 @@ def render_geometry_section() -> None:
                 options=[m.value for m in crop_modes],
                 index=crop_modes.index(current_mode),
                 key="geometry_crop_mode_select",
-                help="Select cropping method."
+                help="Select cropping method.",
             )
 
             selected_mode = CropMode(selected_label)
@@ -36,17 +40,8 @@ def render_geometry_section() -> None:
                 save_settings()
                 st.rerun()
 
-        with c_mode2:
-            render_control_checkbox(
-                "Keep Borders",
-                default_val=DEFAULT_WORKSPACE_CONFIG.geometry.keep_full_frame,
-                key=geo_vm.get_key("keep_full_frame"),
-                help_text="Keep entire image and film borders in final export.",
-            )
-
         if geo_vm.crop_mode == CropMode.MANUAL:
-            c_m1, c_m2 = st.columns(2)
-            with c_m1:
+            with c2:
                 render_control_checkbox(
                     "Pick Crop",
                     default_val=False,
@@ -54,15 +49,17 @@ def render_geometry_section() -> None:
                     is_toggle=True,
                     help_text="Click top-left and then bottom-right corner.",
                 )
-            with c_m2:
+            with c3:
                 if geo_conf.manual_crop_rect is not None:
-                    if st.button("Reset Crop", use_container_width=True):
+                    st.write("##")  # Align with selectbox
+                    if st.button(
+                        "Reset Crop", key="reset_manual_crop_btn", width="stretch"
+                    ):
                         st.session_state[geo_vm.get_key("manual_crop_rect")] = None
                         save_settings()
                         st.rerun()
         else:
-            c_main1, c_main2 = st.columns([1, 1])
-            with c_main1:
+            with c2:
                 render_control_selectbox(
                     "Ratio",
                     SUPPORTED_ASPECT_RATIOS,
@@ -70,30 +67,37 @@ def render_geometry_section() -> None:
                     key=geo_vm.get_key("autocrop_ratio"),
                     help_text="Aspect ratio to crop to.",
                 )
-            # Auto-Crop checkbox removed as it's now implied by mode
-            with c_main2:
-                # Placeholder to align layout or additional control if needed
-                st.write("")
-
-            c_a1, c_a2 = st.columns(2)
-            with c_a1:
-                render_control_checkbox(
-                    "Pick Assist",
-                    default_val=False,
-                    key=geo_vm.get_key("pick_assist"),
-                    is_toggle=True,
-                    help_text="Click on the film border to assist detection.",
-                )
-            with c_a2:
+            with c3:
+                # Show Clear Assist if active, otherwise Pick Assist toggle
                 if geo_conf.autocrop_assist_luma is not None:
-                    if st.button("Clear Assist", use_container_width=True):
+                    st.write("##")  # Align with selectbox
+                    if st.button(
+                        "Clear Assist", key="clear_assist_btn", width="stretch"
+                    ):
                         st.session_state[geo_vm.get_key("autocrop_assist_point")] = None
                         st.session_state[geo_vm.get_key("autocrop_assist_luma")] = None
                         save_settings()
                         st.rerun()
+                else:
+                    render_control_checkbox(
+                        "Pick Assist",
+                        default_val=False,
+                        key=geo_vm.get_key("pick_assist"),
+                        is_toggle=True,
+                        help_text="Click on the film border to assist detection.",
+                    )
 
-        c_geo1, c_geo2 = st.columns(2)
-        with c_geo1:
+        with c4:
+            render_control_checkbox(
+                "Keep Borders",
+                default_val=DEFAULT_WORKSPACE_CONFIG.geometry.keep_full_frame,
+                key=geo_vm.get_key("keep_full_frame"),
+                help_text="Keep entire image and film borders in final export.",
+            )
+
+        # Row 2: Crop Offset, Fine Rotation
+        c_o, c_r = st.columns(2)
+        with c_o:
             render_control_slider(
                 label="Crop Offset",
                 min_val=-20.0,
@@ -105,7 +109,7 @@ def render_geometry_section() -> None:
                 help_text="Buffer/offset (pixels) to crop beyond automatically detected border. "
                 "Positive values crop IN, negative values expand OUT.",
             )
-        with c_geo2:
+        with c_r:
             render_control_slider(
                 label="Fine Rotation (°)",
                 min_val=-5.0,
@@ -113,18 +117,4 @@ def render_geometry_section() -> None:
                 default_val=0.0,
                 step=0.05,
                 key=geo_vm.get_key("fine_rotation"),
-            )
-
-        c_flip1, c_flip2 = st.columns(2)
-        with c_flip1:
-            render_control_checkbox(
-                "Flip Horizontally",
-                default_val=DEFAULT_WORKSPACE_CONFIG.geometry.flip_horizontal,
-                key=geo_vm.get_key("flip_horizontal"),
-            )
-        with c_flip2:
-            render_control_checkbox(
-                "Flip Vertically",
-                default_val=DEFAULT_WORKSPACE_CONFIG.geometry.flip_vertical,
-                key=geo_vm.get_key("flip_vertical"),
             )

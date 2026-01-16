@@ -71,7 +71,6 @@ class ImageProcessor:
         is_bw = settings.process_mode == "B&W" and not is_toned
 
         if is_bw:
-            # Optimized fused B&W conversion
             img_int = float_to_uint_luma(
                 np.ascontiguousarray(buffer), bit_depth=bit_depth
             )
@@ -85,7 +84,6 @@ class ImageProcessor:
             if buffer.ndim == 2 or (buffer.ndim == 3 and buffer.shape[2] == 1):
                 pil_img = Image.fromarray(img_int)
             else:
-                # RGB 16-bit fallback to 8-bit for general PIL/ICC compatibility
                 pil_img = Image.fromarray(float_to_uint8(buffer))
         else:
             raise ValueError("Unsupported bit depth. Use 8 or 16.")
@@ -106,10 +104,9 @@ class ImageProcessor:
         try:
             color_space = str(export_settings.export_color_space)
             raw_color_space = rawpy.ColorSpace.sRGB
-            if color_space == ColorSpace.ADOBE_RGB.value:
-                raw_color_space = rawpy.ColorSpace.Adobe
 
-            with loader_factory.get_loader(file_path) as raw:
+            ctx_mgr, metadata = loader_factory.get_loader(file_path)
+            with ctx_mgr as raw:
                 algo = get_best_demosaic_algorithm(raw)
                 rgb = raw.postprocess(
                     gamma=(1, 1),
@@ -138,47 +135,35 @@ class ImageProcessor:
             is_greyscale = export_settings.export_color_space == "Greyscale"
             is_tiff = export_settings.export_fmt != "JPEG"
 
-            if is_tiff:
-                if is_greyscale:
-                    img_16 = float_to_uint_luma(
-                        np.ascontiguousarray(buffer), bit_depth=16
-                    )
-                else:
-                    img_16 = float_to_uint16(buffer)
-
-                target_icc_bytes = self._get_target_icc_bytes(
-                    color_space,
-                    export_settings.icc_profile_path,
-                    export_settings.icc_invert,
+            if is_greyscale:
+                img_int = float_to_uint_luma(
+                    np.ascontiguousarray(buffer), bit_depth=16 if is_tiff else 8
+                )
+                pil_img = Image.fromarray(img_int)
+            else:
+                pil_img = self.buffer_to_pil(
+                    buffer, params, bit_depth=16 if is_tiff else 8
                 )
 
-                output_buf = io.BytesIO()
+            pil_img, target_icc_bytes = self._apply_color_management(
+                pil_img,
+                color_space,
+                export_settings.icc_profile_path,
+                export_settings.icc_invert,
+            )
 
+            output_buf = io.BytesIO()
+            if is_tiff:
+                img_out = np.array(pil_img)
                 tifffile.imwrite(
                     output_buf,
-                    img_16,
-                    photometric="rgb" if img_16.ndim == 3 else "minisblack",
+                    img_out,
+                    photometric="rgb" if img_out.ndim == 3 else "minisblack",
                     iccprofile=target_icc_bytes,
                     compression="lzw",
                 )
                 return output_buf.getvalue(), "tiff"
             else:
-                if is_greyscale:
-                    img_8 = float_to_uint_luma(
-                        np.ascontiguousarray(buffer), bit_depth=8
-                    )
-                    pil_img = Image.fromarray(img_8)
-                else:
-                    pil_img = self.buffer_to_pil(buffer, params, bit_depth=8)
-
-                pil_img, target_icc_bytes = self._apply_color_management(
-                    pil_img,
-                    color_space,
-                    export_settings.icc_profile_path,
-                    export_settings.icc_invert,
-                )
-
-                output_buf = io.BytesIO()
                 self._save_to_pil_buffer(
                     pil_img, output_buf, export_settings, target_icc_bytes
                 )
@@ -199,9 +184,6 @@ class ImageProcessor:
     def _get_target_icc_bytes(
         self, color_space: str, icc_path: Optional[str], inverse: bool = False
     ) -> Optional[bytes]:
-        """
-        Returns the target ICC profile bytes based on the color space and ICC path.
-        """
         if not inverse and icc_path and os.path.exists(icc_path):
             with open(icc_path, "rb") as f:
                 return f.read()
@@ -220,18 +202,18 @@ class ImageProcessor:
         inverse: bool = False,
     ) -> Tuple[Image.Image, Optional[bytes]]:
         target_icc_bytes = None
-        if icc_path and os.path.exists(icc_path):
-            try:
-                profile_working: Any
-                if color_space == ColorSpace.ADOBE_RGB.value and os.path.exists(
-                    APP_CONFIG.adobe_rgb_profile
-                ):
-                    profile_working = ImageCms.getOpenProfile(APP_CONFIG.adobe_rgb_profile)
-                else:
-                    profile_working = ImageCms.createProfile("sRGB")
+        profile_working = ImageCms.createProfile("sRGB")
 
-                profile_selected: Any = ImageCms.getOpenProfile(icc_path)
+        try:
+            profile_selected: Optional[Any] = None
+            if icc_path and os.path.exists(icc_path):
+                profile_selected = ImageCms.getOpenProfile(icc_path)
+            elif color_space == ColorSpace.ADOBE_RGB.value and os.path.exists(
+                APP_CONFIG.adobe_rgb_profile
+            ):
+                profile_selected = ImageCms.getOpenProfile(APP_CONFIG.adobe_rgb_profile)
 
+            if profile_selected:
                 if inverse:
                     profile_src = profile_selected
                     profile_dst = profile_working
@@ -253,28 +235,23 @@ class ImageProcessor:
                 if result_pil is not None:
                     pil_img = result_pil
 
-                # If inverse, we embed the WORKING space profile because the pixels are converted BACK to it.
-                # If normal, we embed the SELECTED profile.
-                if inverse:
-                    if color_space == ColorSpace.ADOBE_RGB.value and os.path.exists(
+                if not inverse:
+                    if icc_path and os.path.exists(icc_path):
+                        with open(icc_path, "rb") as f:
+                            target_icc_bytes = f.read()
+                    elif color_space == ColorSpace.ADOBE_RGB.value and os.path.exists(
                         APP_CONFIG.adobe_rgb_profile
                     ):
                         with open(APP_CONFIG.adobe_rgb_profile, "rb") as f:
                             target_icc_bytes = f.read()
-                    else:
-                        # sRGB is often omitted or createProfile("sRGB") doesn't give bytes easily
-                        # but we can try to find it or just let it be (sRGB is default)
-                        pass
-                else:
-                    with open(icc_path, "rb") as f:
-                        target_icc_bytes = f.read()
-            except Exception as e:
-                logger.error(f"ICC Error: {e}")
-        elif color_space == ColorSpace.ADOBE_RGB.value and os.path.exists(
-            APP_CONFIG.adobe_rgb_profile
-        ):
-            with open(APP_CONFIG.adobe_rgb_profile, "rb") as f:
-                target_icc_bytes = f.read()
+            elif color_space == ColorSpace.ADOBE_RGB.value and os.path.exists(
+                APP_CONFIG.adobe_rgb_profile
+            ):
+                with open(APP_CONFIG.adobe_rgb_profile, "rb") as f:
+                    target_icc_bytes = f.read()
+
+        except Exception as e:
+            logger.error(f"ICC Error: {e}")
 
         return pil_img, target_icc_bytes
 

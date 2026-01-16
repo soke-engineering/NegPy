@@ -63,8 +63,8 @@ async def main() -> None:
             st.info("Please select a file.")
             return
 
-        # Use fixed Adobe RGB for preview pipeline to decouple from export settings
-        current_cs = ColorSpace.ADOBE_RGB.value
+        # Use fixed sRGB for preview pipeline to decouple from export settings
+        current_cs = ColorSpace.SRGB.value
 
         if controller.handle_file_loading(current_file, current_cs):
             status_area.success(f"Loaded {current_file['name']}")
@@ -92,9 +92,9 @@ async def main() -> None:
         pil_prev = controller.process_frame()
         st.session_state.last_pil_prev = pil_prev
 
-        render_main_layout(pil_prev, sidebar_data, main_area)
+        export_btn = render_main_layout(pil_prev, sidebar_data, main_area)
 
-        if sidebar_data.export_btn:
+        if export_btn:
             import time
 
             with status_area.status("Exporting...") as status:
@@ -118,7 +118,7 @@ async def main() -> None:
                         f"Exported to {os.path.basename(out_path)} in {elapsed:.2f}s"
                     )
 
-        if sidebar_data.process_btn:
+        if sidebar_data.process_all_btn:
             await ExportService.run_batch(
                 session.uploaded_files,
                 session.get_settings_for_file,

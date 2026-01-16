@@ -134,6 +134,7 @@ def render_control_checkbox(
     help_text: Optional[str] = None,
     disabled: bool = False,
     is_toggle: bool = False,
+    on_change: Optional[Callable] = None,
     label_visibility: Literal["visible", "hidden", "collapsed"] = "visible",
 ) -> bool:
     """
@@ -149,6 +150,7 @@ def render_control_checkbox(
             key=w_key,
             help=help_text,
             disabled=disabled,
+            on_change=on_change,
             label_visibility=label_visibility,
         )
     else:
@@ -158,6 +160,7 @@ def render_control_checkbox(
             key=w_key,
             help=help_text,
             disabled=disabled,
+            on_change=on_change,
             label_visibility=label_visibility,
         )
 

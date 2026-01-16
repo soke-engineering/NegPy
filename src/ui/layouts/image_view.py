@@ -39,6 +39,7 @@ def render_image_view(
                 border_config.border_size,
                 border_config.print_width,
                 border_config.border_color,
+                float(ctx.working_copy_size),
             )
 
             new_w, new_h = pil_prev.size

@@ -38,18 +38,26 @@ def test_apply_layout_padding():
 
 
 def test_apply_layout_with_border():
+    # 3:2 image
     img = np.zeros((200, 300, 3), dtype=np.float32)
+    # 0.1 inch border = 30px at 300 DPI
     config = ExportConfig(
         export_print_size=2.54,
         export_dpi=300,
         paper_aspect_ratio="Original",
         export_border_size=0.1 * 2.54,  # 30px
         export_border_color="#ffffff",
+        use_original_res=True,
     )
 
     result = PrintService.apply_layout(img, config)
-    assert result.shape == (200, 300, 3)
-    # Horizontal: 30px border
+    # In 'Original' mode with use_original_res, paper should be img_size + 2*border
+    # 300 + 60 = 360, 200 + 60 = 260
+    assert result.shape == (260, 360, 3)
+    # All borders should be 30px
+    assert np.all(result[0:30, :, :] == 1.0)
+    assert np.all(result[230:260, :, :] == 1.0)
     assert np.all(result[:, 0:30, :] == 1.0)
-    # Vertical: (200 - 160) / 2 = 20px
-    assert np.all(result[0:20, :, :] == 1.0)
+    assert np.all(result[:, 330:360, :] == 1.0)
+    # Content should be intact
+    assert np.all(result[30:230, 30:330, :] == 0.0)

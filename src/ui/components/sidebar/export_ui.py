@@ -1,7 +1,7 @@
 import streamlit as st
 import os
 from src.kernel.system.config import APP_CONFIG, DEFAULT_WORKSPACE_CONFIG
-from src.domain.constants import SUPPORTED_ASPECT_RATIOS
+from src.domain.constants import SUPPORTED_ASPECT_RATIOS, VERTICAL_ASPECT_RATIOS
 from src.domain.models import ColorSpace
 from src.ui.state.view_models import SidebarState
 from src.ui.components.sidebar.helpers import (
@@ -37,7 +37,7 @@ def render_export_section() -> SidebarState:
 
         render_control_selectbox(
             "Paper Ratio",
-            ["Original"] + SUPPORTED_ASPECT_RATIOS,
+            ["Original"] + SUPPORTED_ASPECT_RATIOS + VERTICAL_ASPECT_RATIOS,
             default_val=DEFAULT_WORKSPACE_CONFIG.export.paper_aspect_ratio,
             key="paper_aspect_ratio",
             help_text="Target print aspect ratio. If different from image, borders will pad it.",
@@ -129,6 +129,15 @@ def render_export_section() -> SidebarState:
                 key="export_path",
             )
 
+        st.divider()
+        process_all_btn = st.button(
+            ":material/batch_prediction: Export All Loaded",
+            key="export_all_sidebar",
+            type="primary",
+            width="stretch",
+            help="Process and export all loaded files using their individual settings.",
+        )
+
     # Determine ICC settings for export based on global session state
     session = st.session_state.session
     export_icc_path = session.icc_profile_path if session.apply_icc_to_export else None
@@ -149,5 +158,5 @@ def render_export_section() -> SidebarState:
         apply_icc=session.apply_icc_to_export,
         icc_profile_path=export_icc_path,
         icc_invert=export_icc_invert,
-        process_btn=False,
+        process_all_btn=process_all_btn,
     )

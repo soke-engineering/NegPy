@@ -43,11 +43,18 @@ def render_exposure_section() -> None:
                     help_text="Yellow filtration (removes Blue cast).",
                 )
 
+            def on_pick_wb_change() -> None:
+                if st.session_state.get(vm.get_key("pick_wb")):
+                    st.session_state[vm.get_key("wb_cyan")] = 0.0
+                    st.session_state[vm.get_key("wb_magenta")] = 0.0
+                    st.session_state[vm.get_key("wb_yellow")] = 0.0
+
             render_control_checkbox(
                 "Pick WB",
                 default_val=False,
                 key=vm.get_key("pick_wb"),
                 is_toggle=True,
+                on_change=on_pick_wb_change,
                 help_text="Click on a neutral grey area in the preview to balance colors.",
             )
 

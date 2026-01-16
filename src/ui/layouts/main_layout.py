@@ -4,8 +4,10 @@ from typing import Any, Tuple
 from src.ui.state.session_context import SessionContext
 from src.kernel.system.version import get_app_version
 from src.ui.state.view_models import SidebarState
-from src.ui.layouts.contact_sheet import render_contact_sheet
 from src.ui.layouts.image_view import render_image_view
+from src.ui.components.main.actions_ui import render_actions_menu
+from src.ui.components.main.geometry_ui import render_geometry_section
+from src.ui.components.main.film_strip_ui import render_film_strip
 
 
 def render_layout_header(ctx: SessionContext) -> Tuple[Any, Any]:
@@ -48,7 +50,7 @@ def render_layout_header(ctx: SessionContext) -> Tuple[Any, Any]:
             st.slider(
                 "Display Size",
                 600,
-                2400,
+                2000,
                 step=100,
                 key="working_copy_size",
                 on_change=update_orientation_size,
@@ -62,9 +64,22 @@ def render_main_layout(
     pil_prev: Image.Image,
     sidebar_data: SidebarState,
     main_area: Any,
-) -> None:
+) -> bool:
+    """
+    Renders the central workspace with image preview, actions, and film strip.
+    """
     with main_area:
-        preview_container = st.container()
-        with preview_container:
-            render_image_view(pil_prev, border_config=sidebar_data)
-        render_contact_sheet()
+        c_work, c_strip = st.columns([6, 1])
+
+        with c_work:
+            preview_container = st.container()
+            with preview_container:
+                render_image_view(pil_prev, border_config=sidebar_data)
+
+            export_btn = render_actions_menu()
+            render_geometry_section()
+
+        with c_strip:
+            render_film_strip()
+
+    return export_btn

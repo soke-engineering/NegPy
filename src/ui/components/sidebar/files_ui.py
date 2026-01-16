@@ -27,9 +27,7 @@ def render_file_manager() -> None:
 
             c1, c2 = st.columns(2)
             with c1:
-                if st.button(
-                    ":material/file_open: Pick Files", use_container_width=True
-                ):
+                if st.button(":material/file_open: Pick Files", width="stretch"):
                     save_settings(persist=True)
                     paths = picker.pick_files(initial_dir=last_dir)
                     if paths:
@@ -40,9 +38,7 @@ def render_file_manager() -> None:
                             session.watched_folders.add(os.path.dirname(paths[0]))
                         st.rerun()
             with c2:
-                if st.button(
-                    ":material/folder_open: Pick Folder", use_container_width=True
-                ):
+                if st.button(":material/folder_open: Pick Folder", width="stretch"):
                     save_settings(persist=True)
                     root_path, paths = picker.pick_folder(initial_dir=last_dir)
                     if paths:

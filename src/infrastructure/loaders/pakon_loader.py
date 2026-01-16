@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from typing import Any, List, Dict, ContextManager
+from typing import Any, List, Dict, ContextManager, Tuple
 from src.domain.interfaces import IImageLoader
 from src.infrastructure.loaders.tiff_loader import NonStandardFileWrapper
 from src.kernel.image.logic import uint16_to_float32
@@ -24,7 +24,7 @@ class PakonLoader(IImageLoader):
         file_size = os.path.getsize(file_path)
         return any(abs(file_size - s["size"]) < 1024 for s in cls.PAKON_SPECS)
 
-    def load(self, file_path: str) -> ContextManager[Any]:
+    def load(self, file_path: str) -> Tuple[ContextManager[Any], dict]:
         file_size = os.path.getsize(file_path)
         spec = next(s for s in self.PAKON_SPECS if abs(file_size - s["size"]) < 1024)
         h, w = spec["res"]
@@ -34,4 +34,7 @@ class PakonLoader(IImageLoader):
             data = np.fromfile(f, dtype="<u2", count=expected_pixels)
 
         data = data.reshape((3, h, w)).transpose((1, 2, 0))
-        return NonStandardFileWrapper(uint16_to_float32(np.ascontiguousarray(data)))
+        metadata = {"orientation": 0}
+        return NonStandardFileWrapper(
+            uint16_to_float32(np.ascontiguousarray(data))
+        ), metadata

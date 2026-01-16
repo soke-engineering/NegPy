@@ -21,7 +21,9 @@ def render_icc_section() -> None:
         if "icc_profile_path" not in st.session_state:
             st.session_state.icc_profile_path = session.icc_profile_path or "None"
         if "icc_mode" not in st.session_state:
-            st.session_state.icc_mode = ICCMode.INPUT.value if session.icc_invert else ICCMode.OUTPUT.value
+            st.session_state.icc_mode = (
+                ICCMode.INPUT.value if session.icc_invert else ICCMode.OUTPUT.value
+            )
         if "apply_icc_to_export" not in st.session_state:
             st.session_state.apply_icc_to_export = session.apply_icc_to_export
 
@@ -35,7 +37,9 @@ def render_icc_section() -> None:
         )
 
         # Update Session
-        session.icc_profile_path = str(selected_path) if selected_path != "None" else None
+        session.icc_profile_path = (
+            str(selected_path) if selected_path != "None" else None
+        )
 
         if session.icc_profile_path:
             c1, c2 = st.columns(2)
@@ -43,11 +47,13 @@ def render_icc_section() -> None:
                 mode_val = render_control_radio(
                     "Direction",
                     [m.value for m in ICCMode],
-                    default_val=ICCMode.INPUT.value if session.icc_invert else ICCMode.OUTPUT.value,
+                    default_val=ICCMode.INPUT.value
+                    if session.icc_invert
+                    else ICCMode.OUTPUT.value,
                     key="icc_mode",
                     help_text="Input: Correction mode (profile as source). Output: Simulation mode (profile as destination).",
                 )
-                session.icc_invert = (mode_val == ICCMode.INPUT.value)
+                session.icc_invert = mode_val == ICCMode.INPUT.value
 
             with c2:
                 apply_val = render_control_checkbox(

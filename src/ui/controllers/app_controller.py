@@ -60,7 +60,7 @@ class AppController:
         )
 
         if needs_reload:
-            raw, dims = self.preview_service.load_linear_preview(
+            raw, dims, metadata = self.preview_service.load_linear_preview(
                 current_file["path"], current_color_space
             )
             self.ctx.preview_raw = raw
@@ -68,7 +68,13 @@ class AppController:
             self.ctx.last_file = current_file["name"]
             self.ctx.last_preview_color_space = current_color_space
 
-            # Clear stale metrics
+            # Apply camera orientation if this is a fresh load (no settings yet)
+            f_hash = current_file.get("hash")
+            if f_hash and f_hash not in self.ctx.session.file_settings:
+                detected_rot = metadata.get("orientation", 0)
+                if detected_rot != 0:
+                    st.session_state.rotation = detected_rot
+
             if "last_metrics" in st.session_state:
                 del st.session_state.last_metrics
             if "base_positive" in st.session_state:
@@ -93,12 +99,9 @@ class AppController:
         dm, dy = calculate_wb_shifts(sampled)
 
         vm = ExposureViewModel()
-        st.session_state[vm.get_key("wb_magenta")] = float(
-            np.clip(st.session_state.get(vm.get_key("wb_magenta"), 0.0) - dm, -1, 1)
-        )
-        st.session_state[vm.get_key("wb_yellow")] = float(
-            np.clip(st.session_state.get(vm.get_key("wb_yellow"), 0.0) - dy, -1, 1)
-        )
+        st.session_state[vm.get_key("wb_cyan")] = 0.0
+        st.session_state[vm.get_key("wb_magenta")] = float(np.clip(-dm, -1, 1))
+        st.session_state[vm.get_key("wb_yellow")] = float(np.clip(-dy, -1, 1))
         st.session_state[vm.get_key("pick_wb")] = False
 
         from src.ui.state.state_manager import save_settings
@@ -137,8 +140,6 @@ class AppController:
             st.session_state.base_positive = metrics["base_positive"]
 
         color_space = self.ctx.last_preview_color_space
-
-        # Use global session ICC settings for preview
         target_icc = self.ctx.session.icc_profile_path
         inverse = self.ctx.session.icc_invert
 

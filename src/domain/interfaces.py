@@ -68,10 +68,10 @@ class IAssetStore(Protocol):
 
 class IImageLoader(Protocol):
     """
-    Loads specific image formats.
+    Loads specific image formats. Returns (context, metadata).
     """
 
-    def load(self, file_path: str) -> ContextManager[Any]: ...
+    def load(self, file_path: str) -> Tuple[ContextManager[Any], dict]: ...
 
 
 class IFilePicker(Protocol):

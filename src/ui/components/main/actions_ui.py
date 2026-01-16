@@ -1,4 +1,3 @@
-from typing import Tuple
 import streamlit as st
 from src.ui.state.state_manager import (
     save_settings,
@@ -83,15 +82,27 @@ def rotate_file(direction: int) -> None:
     save_settings(persist=True)
 
 
-def render_navigation() -> Tuple[bool, bool]:
+def flip_file(axis: str) -> None:
+    """
+    Toggles horizontal or vertical flip.
+    """
+    key = f"flip_{axis}"
+    st.session_state[key] = not st.session_state.get(key, False)
+    save_settings(persist=True)
+
+
+def render_actions_menu() -> bool:
+    """
+    Renders 2-row horizontal toolbar for file actions and navigation.
+    """
     session: WorkspaceSession = st.session_state.session
 
-    c1, c2, c3, c4, c5 = st.columns(5)
-
+    # Row 1: Navigation & Transform (6 columns)
+    c1, c2, c3, c4, c5, c6 = st.columns([1, 1, 1, 1, 1, 1])
     with c1:
         st.button(
-            ":material/arrow_back:",
-            key="prev_btn_s",
+            ":material/arrow_back: Prev",
+            key="prev_btn_m",
             width="stretch",
             disabled=session.selected_file_idx == 0,
             on_click=change_file,
@@ -99,8 +110,8 @@ def render_navigation() -> Tuple[bool, bool]:
         )
     with c2:
         st.button(
-            ":material/arrow_forward:",
-            key="next_btn_s",
+            ":material/arrow_forward: Next",
+            key="next_btn_m",
             width="stretch",
             disabled=session.selected_file_idx == len(session.uploaded_files) - 1,
             on_click=change_file,
@@ -108,32 +119,39 @@ def render_navigation() -> Tuple[bool, bool]:
         )
     with c3:
         st.button(
-            ":material/rotate_left:",
-            key="rot_l_s",
+            ":material/rotate_left: Rot L",
+            key="rot_l_m",
             width="stretch",
             on_click=rotate_file,
             args=(1,),
         )
     with c4:
         st.button(
-            ":material/rotate_right:",
-            key="rot_r_s",
+            ":material/rotate_right: Rot R",
+            key="rot_r_m",
             width="stretch",
             on_click=rotate_file,
             args=(-1,),
         )
-
     with c5:
         st.button(
-            ":red[:material/delete:]",
-            key="unload_s",
+            ":material/flip: Flip H",
+            key="flip_h_m",
             width="stretch",
-            type="secondary",
-            on_click=unload_file,
-            args=(session.selected_file_idx,),
+            on_click=flip_file,
+            args=("horizontal",),
+        )
+    with c6:
+        st.button(
+            ":material/flip: Flip V",
+            key="flip_v_m",
+            width="stretch",
+            on_click=flip_file,
+            args=("vertical",),
         )
 
-    ca, cb, cc = st.columns(3)
+    # Row 2: Clipboard & Primary Action
+    ca, cb, cc, cd, ce = st.columns([1, 1, 1, 1, 2])
     with ca:
         st.button(
             ":material/copy_all: Copy",
@@ -152,28 +170,27 @@ def render_navigation() -> Tuple[bool, bool]:
     with cc:
         st.button(
             ":material/reset_image: Reset",
-            key="reset_s",
+            key="reset_m",
             on_click=reset_file_settings,
             width="stretch",
             type="secondary",
             help="Reset all settings for this negative to defaults.",
         )
-
-    ea, eb = st.columns(2)
-    with ea:
-        export_btn_sidebar = st.button(
-            ":material/save: Export",
-            key="export_s",
+    with cd:
+        st.button(
+            ":red[:material/delete:] Unload",
+            key="unload_m",
+            width="stretch",
+            type="secondary",
+            on_click=unload_file,
+            args=(session.selected_file_idx,),
+        )
+    with ce:
+        export_btn = st.button(
+            ":material/save: Export Image",
+            key="export_m",
             width="stretch",
             type="primary",
         )
-    with eb:
-        process_all_btn = st.button(
-            ":material/batch_prediction: Export All",
-            key="export_all_s",
-            type="primary",
-            width="stretch",
-            help="Process and export all loaded files using their individual settings.",
-        )
 
-    return export_btn_sidebar, process_all_btn
+    return export_btn
