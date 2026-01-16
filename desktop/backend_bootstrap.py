@@ -1,4 +1,6 @@
 import os
+
+os.environ["NUMBA_THREADING_LAYER"] = "omp"
 import sys
 from pathlib import Path
 from src.kernel.system.logging import init_streams

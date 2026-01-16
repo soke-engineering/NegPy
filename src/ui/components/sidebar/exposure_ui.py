@@ -1,6 +1,9 @@
 import streamlit as st
 from src.ui.state.view_models import ExposureViewModel
-from src.ui.components.sidebar.helpers import render_control_slider
+from src.ui.components.sidebar.helpers import (
+    render_control_slider,
+    render_control_checkbox,
+)
 
 
 def render_exposure_section() -> None:
@@ -39,6 +42,14 @@ def render_exposure_section() -> None:
                     key=vm.get_key("wb_yellow"),
                     help_text="Yellow filtration (removes Blue cast).",
                 )
+
+            render_control_checkbox(
+                "Pick WB",
+                default_val=False,
+                key=vm.get_key("pick_wb"),
+                is_toggle=True,
+                help_text="Click on a neutral grey area in the preview to balance colors.",
+            )
 
         e1, e2 = st.columns(2)
         with e1:

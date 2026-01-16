@@ -58,9 +58,28 @@ def unload_file(idx: int) -> None:
 def rotate_file(direction: int) -> None:
     """
     Callback to rotate the image.
-    1 for left (+90 deg), -1 for right (-90 deg).
+    1 for left (+90 deg CCW), -1 for right (-90 deg CW).
     """
     st.session_state.rotation = (st.session_state.get("rotation", 0) + direction) % 4
+
+    # Transform manual crop if exists to preserve it across rotations
+    manual_crop = st.session_state.get("manual_crop_rect")
+    if manual_crop:
+        x1, y1, x2, y2 = manual_crop
+        if direction == 1:  # Left (90 CCW)
+            # Point (x, y) -> (y, 1-x)
+            nx1, ny1 = y1, 1.0 - x1
+            nx2, ny2 = y2, 1.0 - x2
+        else:  # Right (90 CW)
+            # Point (x, y) -> (1-y, x)
+            nx1, ny1 = 1.0 - y1, x1
+            nx2, ny2 = 1.0 - y2, x2
+
+        # Re-sort to maintain (xmin, ymin, xmax, ymax)
+        final_x1, final_x2 = sorted([nx1, nx2])
+        final_y1, final_y2 = sorted([ny1, ny2])
+        st.session_state.manual_crop_rect = (final_x1, final_y1, final_x2, final_y2)
+
     save_settings(persist=True)
 
 

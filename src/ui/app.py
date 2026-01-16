@@ -2,7 +2,7 @@ import streamlit as st
 import os
 import asyncio
 from typing import Any
-from src.domain.models import WorkspaceConfig
+from src.domain.models import WorkspaceConfig, ColorSpace
 from src.ui.state.state_manager import init_session_state
 from src.ui.styles.theme import apply_custom_css
 from src.ui.components.sidebar.files_ui import render_file_manager
@@ -63,7 +63,8 @@ async def main() -> None:
             st.info("Please select a file.")
             return
 
-        current_cs = st.session_state.get("export_color_space", "sRGB")
+        # Use fixed Adobe RGB for preview pipeline to decouple from export settings
+        current_cs = ColorSpace.ADOBE_RGB.value
 
         if controller.handle_file_loading(current_file, current_cs):
             status_area.success(f"Loaded {current_file['name']}")
@@ -105,7 +106,6 @@ async def main() -> None:
                     current_file,
                     f_params,
                     sidebar_data,
-                    session.icc_profile_path,
                 )
 
                 if out_path:

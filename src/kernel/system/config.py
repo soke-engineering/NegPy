@@ -1,6 +1,6 @@
 import os
 from src.domain.types import AppConfig
-from src.domain.models import WorkspaceConfig, ExportConfig
+from src.domain.models import WorkspaceConfig, ExportConfig, ColorSpace
 from src.features.exposure.models import ExposureConfig
 from src.features.geometry.models import GeometryConfig
 from src.features.lab.models import LabConfig
@@ -60,7 +60,7 @@ DEFAULT_WORKSPACE_CONFIG = WorkspaceConfig(
     ),
     export=ExportConfig(
         export_fmt="JPEG",
-        export_color_space="sRGB",
+        export_color_space=ColorSpace.SRGB.value,
         export_print_size=30.0,
         export_dpi=300,
         export_border_size=0.0,

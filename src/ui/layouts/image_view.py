@@ -1,6 +1,6 @@
 import streamlit as st
 import numpy as np
-from PIL import Image, ImageOps
+from PIL import Image
 from streamlit_image_coordinates import streamlit_image_coordinates
 from src.kernel.system.logging import get_logger
 from src.kernel.system.config import APP_CONFIG
@@ -11,9 +11,11 @@ from src.ui.state.view_models import SidebarState
 from src.ui.state.session_context import SessionContext
 from src.services.view.coordinate_mapping import CoordinateMapping
 from src.services.view.overlays import Overlays
+from src.services.export.print import PrintService
 from src.ui.state.view_models import (
     GeometryViewModel,
     RetouchViewModel,
+    ExposureViewModel,
 )
 
 logger = get_logger(__name__)
@@ -25,21 +27,24 @@ def render_image_view(
     ctx = SessionContext()
     session = ctx.session
     vm_retouch = RetouchViewModel()
-    border_px = 0
+    border_px_w = 0
+    border_px_h = 0
     orig_w, orig_h = pil_prev.size
 
     if border_config and border_config.add_border:
         try:
-            print_w = border_config.print_width
-            border_w = border_config.border_size
-            color = border_config.border_color
+            pil_prev = PrintService.apply_preview_layout_to_pil(
+                pil_prev,
+                border_config.paper_aspect_ratio,
+                border_config.border_size,
+                border_config.print_width,
+                border_config.border_color,
+            )
 
-            longer_side_px = float(max(pil_prev.size))
-            ratio = border_w / print_w if print_w > 0 else 0.01
-            border_px = int(longer_side_px * ratio)
+            new_w, new_h = pil_prev.size
+            border_px_w = (new_w - orig_w) // 2
+            border_px_h = (new_h - orig_h) // 2
 
-            if border_px > 0:
-                pil_prev = ImageOps.expand(pil_prev, border=border_px, fill=color)
         except Exception as e:
             logger.error(f"Border preview error: {e}")
 
@@ -52,7 +57,6 @@ def render_image_view(
 
     rh_orig, rw_orig = img_raw.shape[:2]
 
-    # Retrieve ROI from the latest engine pass for perfect alignment
     metrics = st.session_state.get("last_metrics", {})
     roi = metrics.get("active_roi")
 
@@ -61,7 +65,9 @@ def render_image_view(
         rw_orig,
         geo_conf.rotation % 4,
         geo_conf.fine_rotation,
-        geo_conf.autocrop and not geo_conf.keep_full_frame,
+        geo_conf.flip_horizontal,
+        geo_conf.flip_vertical,
+        (geo_conf.autocrop or geo_conf.manual_crop) and not geo_conf.keep_full_frame,
         {"roi": roi} if roi else None,
     )
 
@@ -84,7 +90,7 @@ def render_image_view(
             adj.luma_softness,
             geo_conf,
             roi,
-            border_px,
+            (border_px_w, border_px_h),
         )
 
     current_file = session.current_file
@@ -105,6 +111,13 @@ def render_image_view(
 
         is_dust_mode = st.session_state.get(vm_retouch.get_key("pick_dust"), False)
         is_assist_mode = st.session_state.get(geo_vm.get_key("pick_assist"), False)
+        is_manual_crop_mode = st.session_state.get(
+            geo_vm.get_key("pick_manual_crop"), False
+        )
+
+        vm_exp = ExposureViewModel()
+        is_wb_mode = st.session_state.get(vm_exp.get_key("pick_wb"), False)
+
         img_display = pil_prev.copy()
 
         if st.session_state.get(vm_retouch.get_key("show_dust_patches")):
@@ -117,7 +130,7 @@ def render_image_view(
                 (rh_orig, rw_orig),
                 geo_conf,
                 roi,
-                border_px,
+                (border_px_w, border_px_h),
                 alpha=100,
             )
 
@@ -125,7 +138,13 @@ def render_image_view(
 
         _, center_col, _ = st.columns([0.1, 0.8, 0.1])
         with center_col:
-            if is_dust_mode or is_local_mode or is_assist_mode:
+            if (
+                is_dust_mode
+                or is_local_mode
+                or is_assist_mode
+                or is_manual_crop_mode
+                or is_wb_mode
+            ):
                 value = streamlit_image_coordinates(
                     img_display, key=f"picker_{working_size}", width=working_size
                 )
@@ -133,21 +152,62 @@ def render_image_view(
                     st.info("Click to remove dust spot.")
                 elif is_assist_mode:
                     st.info("Click on the film border (unexposed area) to assist crop.")
+                elif is_manual_crop_mode:
+                    if st.session_state.get("manual_crop_start_point") is None:
+                        st.info("Click top-left corner of the crop.")
+                    else:
+                        st.info("Click bottom-right corner of the crop.")
+                elif is_wb_mode:
+                    st.info("Click on a neutral grey area to balance colors.")
             else:
                 st.image(img_display, width=working_size)
                 value = None
 
     if value:
         scale = pil_prev.width / float(working_size)
-        content_x = (value["x"] * scale) - border_px
-        content_y = (value["y"] * scale) - border_px
+
+        content_x = (value["x"] * scale) - border_px_w
+        content_y = (value["y"] * scale) - border_px_h
 
         if 0 <= content_x < orig_w and 0 <= content_y < orig_h:
             rx, ry = CoordinateMapping.map_click_to_raw(
                 content_x / orig_w, content_y / orig_h, uv_grid
             )
 
-            if is_dust_mode and value != st.session_state.last_dust_click:
+            if is_wb_mode and value != st.session_state.get("last_wb_click"):
+                st.session_state.last_wb_click = value
+                from src.ui.controllers.app_controller import AppController
+
+                ctrl = AppController(ctx)
+                ctrl.handle_wb_pick(content_x / orig_w, content_y / orig_h)
+                st.rerun()
+
+            elif is_manual_crop_mode and value != st.session_state.get(
+                "last_manual_crop_click"
+            ):
+                st.session_state.last_manual_crop_click = value
+                start_point = st.session_state.get("manual_crop_start_point")
+
+                if start_point is None:
+                    st.session_state.manual_crop_start_point = (rx, ry)
+                    st.toast("Top-left point set. Now click bottom-right.")
+                    st.rerun()
+                else:
+                    x1, y1 = start_point
+                    x2, y2 = rx, ry
+                    st.session_state[geo_vm.get_key("manual_crop_rect")] = (
+                        x1,
+                        y1,
+                        x2,
+                        y2,
+                    )
+                    st.session_state.manual_crop_start_point = None
+                    st.session_state[geo_vm.get_key("pick_manual_crop")] = False
+                    save_settings()
+                    st.toast("Manual crop set.")
+                    st.rerun()
+
+            elif is_dust_mode and value != st.session_state.last_dust_click:
                 st.session_state.last_dust_click = value
                 manual_spots_key = vm_retouch.get_key("manual_dust_spots")
                 if manual_spots_key not in st.session_state:

@@ -9,6 +9,7 @@ class LabConfig:
     """
 
     color_separation: float = 1.0
+    saturation: float = 1.0
     clahe_strength: float = 0.0
     sharpen: float = 0.25
     crosstalk_matrix: Optional[List[float]] = field(

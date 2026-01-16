@@ -90,7 +90,6 @@ class DarkroomEngine:
 
         def run_exposure(img_in: ImageBuffer, ctx: PipelineContext) -> ImageBuffer:
             img_out = PhotometricProcessor(settings.exposure).process(img_in, ctx)
-            ctx.metrics["base_positive"] = img_out.copy()
             return img_out
 
         current_img, pipeline_changed = self._run_stage(
@@ -123,5 +122,7 @@ class DarkroomEngine:
 
         current_img = ToningProcessor(settings.toning).process(current_img, context)
         current_img = CropProcessor(settings.geometry).process(current_img, context)
+
+        context.metrics["base_positive"] = current_img.copy()
 
         return current_img

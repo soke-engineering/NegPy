@@ -186,3 +186,17 @@ def density_to_cmy(density: float, log_range: float = 1.0) -> float:
 
     absolute_density = density * log_range
     return float(absolute_density / EXPOSURE_CONSTANTS["cmy_max_density"])
+
+
+def calculate_wb_shifts(sampled_rgb: np.ndarray) -> Tuple[float, float]:
+    """
+    Calculates Magenta and Yellow shifts to neutralize sampled color.
+    """
+    r, g, b = np.clip(sampled_rgb, 1e-6, 1.0)
+    d_m = np.log10(g) - np.log10(r)
+    d_y = np.log10(b) - np.log10(r)
+
+    shift_m = density_to_cmy(d_m)
+    shift_y = density_to_cmy(d_y)
+
+    return float(shift_m), float(shift_y)

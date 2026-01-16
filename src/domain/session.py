@@ -29,6 +29,8 @@ class WorkspaceSession:
         self.selected_file_idx: int = 0
         self.clipboard: Optional[Dict[str, Any]] = None
         self.icc_profile_path: Optional[str] = None
+        self.icc_invert: bool = False
+        self.apply_icc_to_export: bool = False
         self.show_curve: bool = False
         self.watched_folders: Set[str] = set()
 

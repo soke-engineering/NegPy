@@ -1,11 +1,14 @@
 import streamlit as st
 import os
+import numpy as np
 from PIL import Image
 from src.ui.state.session_context import SessionContext
 from src.services.rendering.preview_manager import PreviewManager
 from src.services.rendering.image_processor import ImageProcessor
 from src.infrastructure.display.color_mgmt import ColorService
 from src.infrastructure.filesystem.watcher import FolderWatchService
+from src.features.exposure.logic import calculate_wb_shifts
+from src.ui.state.view_models import ExposureViewModel
 
 
 class AppController:
@@ -64,7 +67,7 @@ class AppController:
             self.ctx.original_res = dims
             self.ctx.last_file = current_file["name"]
             self.ctx.last_preview_color_space = current_color_space
-            
+
             # Clear stale metrics
             if "last_metrics" in st.session_state:
                 del st.session_state.last_metrics
@@ -73,6 +76,34 @@ class AppController:
 
             return True
         return False
+
+    def handle_wb_pick(self, nx: float, ny: float) -> None:
+        """
+        Calculates and applies WB shifts from a sampled point.
+        """
+        img = st.session_state.get("base_positive")
+        if img is None:
+            return
+
+        h, w = img.shape[:2]
+        px = int(np.clip(nx * w, 0, w - 1))
+        py = int(np.clip(ny * h, 0, h - 1))
+        sampled = img[py, px]
+
+        dm, dy = calculate_wb_shifts(sampled)
+
+        vm = ExposureViewModel()
+        st.session_state[vm.get_key("wb_magenta")] = float(
+            np.clip(st.session_state.get(vm.get_key("wb_magenta"), 0.0) - dm, -1, 1)
+        )
+        st.session_state[vm.get_key("wb_yellow")] = float(
+            np.clip(st.session_state.get(vm.get_key("wb_yellow"), 0.0) - dy, -1, 1)
+        )
+        st.session_state[vm.get_key("pick_wb")] = False
+
+        from src.ui.state.state_manager import save_settings
+
+        save_settings()
 
     def process_frame(self) -> Image.Image:
         """
@@ -106,9 +137,14 @@ class AppController:
             st.session_state.base_positive = metrics["base_positive"]
 
         color_space = self.ctx.last_preview_color_space
-        if self.ctx.session.icc_profile_path:
+
+        # Use global session ICC settings for preview
+        target_icc = self.ctx.session.icc_profile_path
+        inverse = self.ctx.session.icc_invert
+
+        if target_icc:
             pil_prev = self.color_service.apply_icc_profile(
-                pil_prev, color_space, self.ctx.session.icc_profile_path
+                pil_prev, color_space, target_icc, inverse=inverse
             )
         else:
             pil_prev = self.color_service.simulate_on_srgb(pil_prev, color_space)

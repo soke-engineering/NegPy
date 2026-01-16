@@ -153,3 +153,18 @@ def apply_output_sharpening(
     res_rgb = cv2.cvtColor(res_lab, cv2.COLOR_LAB2RGB)
 
     return ensure_image(np.clip(res_rgb, 0.0, 1.0))
+
+
+def apply_saturation(img: ImageBuffer, saturation: float) -> ImageBuffer:
+    """
+    Adjusts saturation via HSV space.
+    """
+    if saturation == 1.0:
+        return img
+
+    hsv = cv2.cvtColor(img.astype(np.float32), cv2.COLOR_RGB2HSV)
+    hsv[:, :, 1] = hsv[:, :, 1] * saturation
+    hsv[:, :, 1] = np.clip(hsv[:, :, 1], 0.0, 1.0)
+
+    res = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
+    return ensure_image(np.clip(res, 0.0, 1.0))

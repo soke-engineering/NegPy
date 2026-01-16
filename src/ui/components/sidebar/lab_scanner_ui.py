@@ -22,6 +22,16 @@ def render_lab_scanner_section() -> None:
                     format="%.2f",
                     help_text="Color matrix strength (un-mixing dyes).",
                 )
+                render_control_slider(
+                    label="Saturation",
+                    min_val=0.0,
+                    max_val=2.0,
+                    default_val=1.0,
+                    step=0.05,
+                    key=vm.get_key("saturation"),
+                    format="%.2f",
+                    help_text="Adjusts color intensity.",
+                )
             else:
                 st.write("")
 

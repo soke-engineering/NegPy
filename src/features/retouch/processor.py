@@ -22,10 +22,18 @@ class RetouchProcessor:
         orig_h, orig_w = context.original_size
 
         rot_params = context.metrics.get(
-            "geometry_params", {"rotation": 0, "fine_rotation": 0.0}
+            "geometry_params",
+            {
+                "rotation": 0,
+                "fine_rotation": 0.0,
+                "flip_horizontal": False,
+                "flip_vertical": False,
+            },
         )
-        rotation = rot_params["rotation"]
-        fine_rotation = rot_params["fine_rotation"]
+        rotation = rot_params.get("rotation", 0)
+        fine_rotation = rot_params.get("fine_rotation", 0.0)
+        flip_h = rot_params.get("flip_horizontal", False)
+        flip_v = rot_params.get("flip_vertical", False)
 
         mapped_spots = []
         if self.config.manual_dust_spots:
@@ -36,6 +44,8 @@ class RetouchProcessor:
                     (orig_h, orig_w),
                     rotation,
                     fine_rotation,
+                    flip_h,
+                    flip_v,
                 )
                 mapped_spots.append((mnx, mny, size))
 
@@ -50,6 +60,8 @@ class RetouchProcessor:
                         (orig_h, orig_w),
                         rotation,
                         fine_rotation,
+                        flip_h,
+                        flip_v,
                     )
                     new_points.append((mnx, mny))
 

@@ -87,6 +87,26 @@ def enforce_roi_aspect_ratio(
     return int(max(0, y1)), int(min(h, y2)), int(max(0, x1)), int(min(w, x2))
 
 
+def get_manual_rect_coords(
+    img: ImageBuffer,
+    manual_rect: Tuple[float, float, float, float],
+    offset_px: int = 0,
+    scale_factor: float = 1.0,
+) -> ROI:
+    """
+    Maps normalized manual crop rect to pixel ROI.
+    """
+    h, w = img.shape[:2]
+    x1_n, y1_n, x2_n, y2_n = manual_rect
+
+    ix1, ix2 = sorted([int(x1_n * w), int(x2_n * w)])
+    iy1, iy2 = sorted([int(y1_n * h), int(y2_n * h)])
+
+    roi = (iy1, iy2, ix1, ix2)
+    margin = offset_px * scale_factor
+    return apply_margin_to_roi(roi, h, w, margin)
+
+
 def get_manual_crop_coords(
     img: ImageBuffer,
     offset_px: int = 0,
@@ -147,24 +167,31 @@ def map_coords_to_geometry(
     orig_shape: Tuple[int, int],
     rotation_k: int = 0,
     fine_rotation: float = 0.0,
+    flip_horizontal: bool = False,
+    flip_vertical: bool = False,
     roi: Optional[ROI] = None,
 ) -> Tuple[float, float]:
     """
-    Raw (0-1) -> Rotated/Cropped (0-1) coords.
+    Maps raw coordinates to geometry-transformed space.
     """
     h_orig, w_orig = orig_shape
     px, py = nx * w_orig, ny * h_orig
     h, w = h_orig, w_orig
 
     k = rotation_k % 4
-    if k == 1:  # 90 CCW
+    if k == 1:
         px, py = py, w - px
         h, w = w, h
-    elif k == 2:  # 180
+    elif k == 2:
         px, py = w - px, h - py
-    elif k == 3:  # 270 CCW (90 CW)
+    elif k == 3:
         px, py = h - py, px
         h, w = w, h
+
+    if flip_horizontal:
+        px = w - px
+    if flip_vertical:
+        py = h - py
 
     if fine_rotation != 0.0:
         center = (w / 2.0, h / 2.0)

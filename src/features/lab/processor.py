@@ -6,6 +6,7 @@ from src.features.lab.logic import (
     apply_spectral_crosstalk,
     apply_clahe,
     apply_output_sharpening,
+    apply_saturation,
 )
 
 
@@ -27,6 +28,9 @@ class PhotoLabProcessor:
                 img_dens, c_strength, self.config.crosstalk_matrix
             )
             img = np.power(10.0, -img_dens)
+
+        if self.config.saturation != 1.0:
+            img = apply_saturation(img, self.config.saturation)
 
         if self.config.clahe_strength > 0:
             img = apply_clahe(img, self.config.clahe_strength, context.scale_factor)

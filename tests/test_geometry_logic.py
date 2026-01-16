@@ -89,3 +89,27 @@ def test_crop_consistency_across_resolutions():
 
     assert abs(y1_f / full_h - y1_p / prev_h) < 0.001
     assert abs(x1_f / full_w - x1_p / prev_w) < 0.001
+
+
+def test_map_coords_to_geometry_flips():
+    from src.features.geometry.logic import map_coords_to_geometry
+
+    orig_shape = (1000, 2000)  # H, W
+    nx, ny = 0.2, 0.3  # Top left quadrant
+
+    # Horizontal flip
+    fnx, fny = map_coords_to_geometry(nx, ny, orig_shape, flip_horizontal=True)
+    assert abs(fnx - 0.8) < 0.001
+    assert abs(fny - 0.3) < 0.001
+
+    # Vertical flip
+    fnx, fny = map_coords_to_geometry(nx, ny, orig_shape, flip_vertical=True)
+    assert abs(fnx - 0.2) < 0.001
+    assert abs(fny - 0.7) < 0.001
+
+    # Both
+    fnx, fny = map_coords_to_geometry(
+        nx, ny, orig_shape, flip_horizontal=True, flip_vertical=True
+    )
+    assert abs(fnx - 0.8) < 0.001
+    assert abs(fny - 0.7) < 0.001

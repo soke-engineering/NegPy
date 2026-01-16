@@ -14,7 +14,9 @@ class CoordinateMapping:
         rw_orig: int,
         rotation: int,
         fine_rot: float,
-        autocrop: bool,
+        flip_h: bool = False,
+        flip_v: bool = False,
+        autocrop: bool = True,
         autocrop_params: Optional[dict] = None,
     ) -> np.ndarray:
         """
@@ -27,6 +29,12 @@ class CoordinateMapping:
 
         if rotation != 0:
             uv_grid = np.rot90(uv_grid, k=rotation).astype(np.float32)
+
+        if flip_h:
+            uv_grid = np.fliplr(uv_grid).astype(np.float32)
+
+        if flip_v:
+            uv_grid = np.flipud(uv_grid).astype(np.float32)
 
         if fine_rot != 0.0:
             h_r, w_r = uv_grid.shape[:2]

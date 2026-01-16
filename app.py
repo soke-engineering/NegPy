@@ -1,3 +1,6 @@
+import os
+
+os.environ["NUMBA_THREADING_LAYER"] = "omp"
 import asyncio
 import logging
 import multiprocessing
@@ -38,7 +41,6 @@ if __name__ == "__main__":
     if handle_subtask():
         sys.exit(0)
 
-    # needed when running within electron app
     multiprocessing.freeze_support()
     setup_logging(level=logging.INFO)
 

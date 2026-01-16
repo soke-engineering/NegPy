@@ -205,6 +205,43 @@ def render_control_selectbox(
     return _update_canonical_state(key, res, current_val)
 
 
+def render_control_radio(
+    label: str,
+    options: list,
+    default_val: Any,
+    key: str,
+    help_text: Optional[str] = None,
+    disabled: bool = False,
+    format_func: Any = str,
+    horizontal: bool = True,
+    label_visibility: Literal["visible", "hidden", "collapsed"] = "visible",
+) -> Any:
+    """
+    Standardized radio renderer for the sidebar (toggle-like).
+    """
+    current_val = _ensure_and_get_state(key, default_val, lambda x: x)
+    w_key = _sync_shadow_state(key, current_val)
+
+    try:
+        idx = options.index(current_val)
+    except ValueError:
+        idx = 0
+
+    res = st.radio(
+        label,
+        options=options,
+        index=idx,
+        key=w_key,
+        help=help_text,
+        disabled=disabled,
+        format_func=format_func,
+        horizontal=horizontal,
+        label_visibility=label_visibility,
+    )
+
+    return _update_canonical_state(key, res, current_val)
+
+
 def render_control_text_input(
     label: str,
     default_val: str,

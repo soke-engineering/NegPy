@@ -13,7 +13,7 @@ from src.ui.components.sidebar.presets_ui import render_presets
 from src.ui.components.sidebar.navigation_ui import render_navigation
 from src.ui.components.sidebar.geometry_ui import render_geometry_section
 from src.ui.components.sidebar.analysis_ui import render_analysis_section
-from src.ui.components.sidebar.soft_proofing_ui import render_soft_proofing
+from src.ui.components.sidebar.icc_ui import render_icc_section
 from src.ui.components.sidebar.helpers import (
     render_control_selectbox,
     reset_wb_settings,
@@ -42,7 +42,7 @@ def render_adjustments() -> SidebarState:
     render_paper_section()
     render_local_adjustments()
     render_retouch_section()
-    render_soft_proofing()
+    render_icc_section()
 
     export_data = render_export_section()
     export_data.export_btn = export_btn_sidebar

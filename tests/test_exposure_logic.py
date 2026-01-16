@@ -35,12 +35,25 @@ class TestExposureLogic(unittest.TestCase):
         """Verify unit conversion roundtrip."""
         val = 0.5
         dens = cmy_to_density(val, log_range=1.0)
-        # cmy_max_density is 0.1
-        # dens = 0.5 * 0.1 / 1.0 = 0.05
-        self.assertEqual(dens, 0.05)
+        # cmy_max_density is 0.2 (from models.py)
+        # dens = 0.5 * 0.2 / 1.0 = 0.1
+        self.assertEqual(dens, 0.1)
 
         val_back = density_to_cmy(dens, log_range=1.0)
         self.assertAlmostEqual(val, val_back)
+
+    def test_calculate_wb_shifts(self):
+        """Verify WB shift calculation (neutralizing tint)."""
+        from src.features.exposure.logic import calculate_wb_shifts
+
+        # R=0.5, G=0.6, B=0.4 (Green cast, low Blue)
+        sampled = np.array([0.5, 0.6, 0.4])
+        dm, dy = calculate_wb_shifts(sampled)
+
+        # dM = log10(0.6)-log10(0.5) > 0
+        # dY = log10(0.4)-log10(0.5) < 0
+        self.assertGreater(dm, 0)
+        self.assertLess(dy, 0)
 
 
 if __name__ == "__main__":
