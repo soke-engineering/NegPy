@@ -1,6 +1,6 @@
 import streamlit as st
 from src.ui.state.view_models import ToningViewModel
-from src.ui.components.sidebar.helpers import (
+from src.ui.components.helpers import (
     render_control_slider,
     render_control_selectbox,
 )

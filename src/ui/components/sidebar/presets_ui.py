@@ -2,7 +2,7 @@ import streamlit as st
 from src.services.assets.presets import Presets
 from src.ui.state.state_manager import save_settings, load_settings
 from src.domain.session import WorkspaceSession
-from src.ui.components.sidebar.helpers import (
+from src.ui.components.helpers import (
     render_control_selectbox,
     render_control_text_input,
 )

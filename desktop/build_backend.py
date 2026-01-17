@@ -7,11 +7,13 @@ import shutil
 import platform
 import streamlit
 import streamlit_image_coordinates
+import streamlit_javascript
 
 
 os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 streamlit_dir = os.path.dirname(streamlit.__file__)
 streamlit_image_coordinates_dir = os.path.dirname(streamlit_image_coordinates.__file__)
+streamlit_javascript_dir = os.path.dirname(streamlit_javascript.__file__)
 
 # build params
 params = [
@@ -23,6 +25,7 @@ params = [
     "--additional-hooks-dir=desktop",
     "--copy-metadata=streamlit",
     "--copy-metadata=streamlit-image-coordinates",
+    "--copy-metadata=streamlit-javascript",
     "--copy-metadata=imageio",
     "--collect-all=imagecodecs",
     "--hidden-import=rawpy",
@@ -46,6 +49,7 @@ params = [
     "--hidden-import=imageio.v3",
     "--hidden-import=tifffile",
     "--hidden-import=streamlit_image_coordinates",
+    "--hidden-import=streamlit_javascript",
     "--hidden-import=jinja2",
     "--hidden-import=tkinter",
     "--hidden-import=_tkinter",
@@ -57,6 +61,7 @@ params = [
     # Streamlit files
     f"--add-data={streamlit_dir}:streamlit",
     f"--add-data={streamlit_image_coordinates_dir}:streamlit_image_coordinates",
+    f"--add-data={streamlit_javascript_dir}:streamlit_javascript",
     # Config for streamlit
     "--add-data=.streamlit:.streamlit",
     "--add-data=VERSION:.",

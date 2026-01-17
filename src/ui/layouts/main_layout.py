@@ -2,10 +2,13 @@ import streamlit as st
 from PIL import Image
 from typing import Any, Tuple
 from src.ui.state.session_context import SessionContext
-from src.kernel.system.version import get_app_version
+from src.kernel.system.version import get_app_version, check_for_updates
 from src.ui.state.view_models import SidebarState
-from src.ui.layouts.contact_sheet import render_contact_sheet
+from src.ui.components.helpers import render_control_slider
 from src.ui.layouts.image_view import render_image_view
+from src.ui.components.main.actions_ui import render_actions_menu
+from src.ui.components.main.geometry_ui import render_geometry_section
+from src.ui.components.main.film_strip_ui import render_film_strip
 
 
 def render_layout_header(ctx: SessionContext) -> Tuple[Any, Any]:
@@ -30,29 +33,39 @@ def render_layout_header(ctx: SessionContext) -> Tuple[Any, Any]:
         """Callback to save the slider value to the orientation-specific key."""
         st.session_state[target_key] = st.session_state.working_copy_size
 
+    if "update_available" not in st.session_state:
+        st.session_state.update_available = check_for_updates()
+
     main_area = st.container()
     with main_area:
         c_logo, c_status, c_empty, c_slider = st.columns([2, 3, 1, 1])
         with c_logo:
             version = get_app_version()
-            st.title(
-                f":red[:material/camera_roll:] NegPy :grey[{version}]",
-                width="stretch",
-            )
+            new_ver = st.session_state.update_available
+            title_md = f":red[:material/camera_roll:] NegPy :grey[{version}]"
+            help_text = "Using latest version"
+
+            if new_ver:
+                title_md += " :yellow[:material/system_update_alt:]"
+                help_text = f"New version available: {new_ver}"
+
+            st.title(title_md, help=help_text)
+
         with c_status:
-            status_container = st.container(height=48, border=False, width="stretch")
+            status_container = st.container(height=48, border=False)
             status_area = status_container.empty()
         with c_empty:
             pass
         with c_slider:
-            st.slider(
+            render_control_slider(
                 "Display Size",
                 600,
-                2400,
+                2000,
+                default_val=1000,
                 step=100,
                 key="working_copy_size",
                 on_change=update_orientation_size,
-                help="Scaling of the preview image in the browser. Does not affect internal processing resolution.",
+                help_text="Scaling of the preview image in the browser. Does not affect internal processing resolution.",
             )
 
     return main_area, status_area
@@ -62,9 +75,22 @@ def render_main_layout(
     pil_prev: Image.Image,
     sidebar_data: SidebarState,
     main_area: Any,
-) -> None:
+) -> bool:
+    """
+    Renders the central workspace with image preview, actions, and film strip.
+    """
     with main_area:
-        preview_container = st.container()
-        with preview_container:
-            render_image_view(pil_prev, border_config=sidebar_data)
-        render_contact_sheet()
+        c_work, c_strip = st.columns([6, 1])
+
+        with c_work:
+            preview_container = st.container()
+            with preview_container:
+                render_image_view(pil_prev, border_config=sidebar_data)
+
+            export_btn = render_actions_menu()
+            render_geometry_section()
+
+        with c_strip:
+            render_film_strip()
+
+    return export_btn

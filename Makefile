@@ -72,36 +72,8 @@ dist:
 	@$(call update_version)
 	@echo "Building Electron application for host OS..."
 	@start=$$(date +%s); \
+	rm -rf dist; \
 	PATH=$(CURDIR)/$(VENV)/bin:$(PATH) npm run dist; \
-	end=$$(date +%s); \
-	echo "Build took $$(($$end - $$start)) seconds"
-
-.PHONY: dist-win
-dist-win:
-	@$(call update_version)
-	@echo "Building Electron application for Windows..."
-	@echo "Note: This must be run on Windows to correctly build the Python backend."
-	@start=$$(date +%s); \
-	PATH=$(CURDIR)/$(VENV)/bin:$(PATH) npm run dist:win; \
-	end=$$(date +%s); \
-	echo "Build took $$(($$end - $$start)) seconds"
-
-.PHONY: dist-mac
-dist-mac:
-	@$(call update_version)
-	@echo "Building Electron application for macOS..."
-	@echo "Note: This must be run on macOS to correctly build the Python backend."
-	@start=$$(date +%s); \
-	PATH=$(CURDIR)/$(VENV)/bin:$(PATH) npm run dist:mac; \
-	end=$$(date +%s); \
-	echo "Build took $$(($$end - $$start)) seconds"
-
-.PHONY: dist-linux
-dist-linux:
-	@$(call update_version)
-	@echo "Building Electron application for Linux..."
-	@start=$$(date +%s); \
-	PATH=$(CURDIR)/$(VENV)/bin:$(PATH) npm run dist:linux; \
 	end=$$(date +%s); \
 	echo "Build took $$(($$end - $$start)) seconds"
 

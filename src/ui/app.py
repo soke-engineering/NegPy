@@ -2,7 +2,7 @@ import streamlit as st
 import os
 import asyncio
 from typing import Any
-from src.domain.models import WorkspaceConfig
+from src.domain.models import WorkspaceConfig, ColorSpace
 from src.ui.state.state_manager import init_session_state
 from src.ui.styles.theme import apply_custom_css
 from src.ui.components.sidebar.files_ui import render_file_manager
@@ -63,7 +63,8 @@ async def main() -> None:
             st.info("Please select a file.")
             return
 
-        current_cs = st.session_state.get("export_color_space", "sRGB")
+        # Use fixed sRGB for preview pipeline to decouple from export settings
+        current_cs = ColorSpace.SRGB.value
 
         if controller.handle_file_loading(current_file, current_cs):
             status_area.success(f"Loaded {current_file['name']}")
@@ -91,9 +92,9 @@ async def main() -> None:
         pil_prev = controller.process_frame()
         st.session_state.last_pil_prev = pil_prev
 
-        render_main_layout(pil_prev, sidebar_data, main_area)
+        export_btn = render_main_layout(pil_prev, sidebar_data, main_area)
 
-        if sidebar_data.export_btn:
+        if export_btn:
             import time
 
             with status_area.status("Exporting...") as status:
@@ -105,7 +106,6 @@ async def main() -> None:
                     current_file,
                     f_params,
                     sidebar_data,
-                    session.icc_profile_path,
                 )
 
                 if out_path:
@@ -118,7 +118,7 @@ async def main() -> None:
                         f"Exported to {os.path.basename(out_path)} in {elapsed:.2f}s"
                     )
 
-        if sidebar_data.process_btn:
+        if sidebar_data.process_all_btn:
             await ExportService.run_batch(
                 session.uploaded_files,
                 session.get_settings_for_file,

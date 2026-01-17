@@ -20,9 +20,7 @@ class PipelineContext:
     original_size: Dimensions
     scale_factor: float
     process_mode: str = "C41"
-    # ROI detected by geometry step, applied by crop step
     active_roi: Optional[ROI] = None
-    # Metrics gathered by analysis steps (e.g., histogram bounds)
     metrics: dict[str, Any] = field(default_factory=dict)
 
 
@@ -68,10 +66,10 @@ class IAssetStore(Protocol):
 
 class IImageLoader(Protocol):
     """
-    Loads specific image formats.
+    Loads specific image formats. Returns (context, metadata).
     """
 
-    def load(self, file_path: str) -> ContextManager[Any]: ...
+    def load(self, file_path: str) -> Tuple[ContextManager[Any], dict]: ...
 
 
 class IFilePicker(Protocol):

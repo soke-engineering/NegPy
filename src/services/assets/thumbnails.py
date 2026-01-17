@@ -47,7 +47,8 @@ def get_thumbnail_worker(
                 return cached
 
         ts = APP_CONFIG.thumbnail_size
-        with loader_factory.get_loader(file_path) as raw:
+        ctx_mgr, metadata = loader_factory.get_loader(file_path)
+        with ctx_mgr as raw:
             img: Optional[Image.Image] = None
 
             if hasattr(raw, "extract_thumb"):
@@ -75,6 +76,11 @@ def get_thumbnail_worker(
                 )
                 rgb = ensure_rgb(rgb)
                 img = Image.fromarray(rgb)
+
+            # Apply orientation metadata if present
+            rot = metadata.get("orientation", 0)
+            if rot != 0:
+                img = img.rotate(rot * -90, expand=True)
 
             img.thumbnail((ts, ts))
             square_img = Image.new("RGB", (ts, ts), (14, 17, 23))

@@ -2,7 +2,7 @@ from typing import Protocol, Any, Optional, Dict
 import streamlit as st
 from dataclasses import dataclass
 from src.features.exposure.models import ExposureConfig
-from src.features.geometry.models import GeometryConfig
+from src.features.geometry.models import GeometryConfig, CropMode
 from src.features.toning.models import ToningConfig
 from src.features.lab.models import LabConfig
 from src.features.retouch.models import RetouchConfig
@@ -17,16 +17,19 @@ class SidebarState:
 
     out_fmt: str = "JPEG"
     color_space: str = "sRGB"
+    paper_aspect_ratio: str = "Original"
     print_width: float = 27.0
     print_dpi: int = 300
     export_path: str = "export"
     add_border: bool = True
     border_size: float = 0.25
     border_color: str = "#ffffff"
+    use_original_res: bool = False
     filename_pattern: str = "positive_{{ original_name }}"
     apply_icc: bool = False
-    process_btn: bool = False
-    export_btn: bool = False
+    icc_profile_path: Optional[str] = None
+    icc_invert: bool = False
+    process_all_btn: bool = False
 
 
 class IViewModel(Protocol):
@@ -82,6 +85,7 @@ class ExposureViewModel(BaseViewModel):
             "shoulder": "shoulder",
             "shoulder_width": "shoulder_width",
             "shoulder_hardness": "shoulder_hardness",
+            "pick_wb": "pick_wb",
         }
 
     def get_key(self, field_name: str) -> str:
@@ -121,22 +125,44 @@ class GeometryViewModel(BaseViewModel):
         self._keys = {
             "rotation": "rotation",
             "fine_rotation": "fine_rotation",
+            "flip_horizontal": "flip_horizontal",
+            "flip_vertical": "flip_vertical",
             "autocrop": "autocrop",
             "autocrop_offset": "autocrop_offset",
             "autocrop_ratio": "autocrop_ratio",
             "autocrop_assist_point": "autocrop_assist_point",
             "autocrop_assist_luma": "autocrop_assist_luma",
             "pick_assist": "pick_assist",
+            "manual_crop": "manual_crop",
+            "manual_crop_rect": "manual_crop_rect",
+            "pick_manual_crop": "pick_manual_crop",
             "keep_full_frame": "keep_full_frame",
         }
 
     def get_key(self, field_name: str) -> str:
         return self._keys.get(field_name, field_name)
 
+    @property
+    def crop_mode(self) -> CropMode:
+        if self._get_bool(self.get_key("manual_crop")):
+            return CropMode.MANUAL
+        return CropMode.AUTO
+
+    @crop_mode.setter
+    def crop_mode(self, value: CropMode) -> None:
+        if value == CropMode.MANUAL:
+            st.session_state[self.get_key("manual_crop")] = True
+            st.session_state[self.get_key("autocrop")] = False
+        else:
+            st.session_state[self.get_key("manual_crop")] = False
+            st.session_state[self.get_key("autocrop")] = True
+
     def to_config(self) -> GeometryConfig:
         return GeometryConfig(
             rotation=self._get_int(self.get_key("rotation")),
             fine_rotation=self._get_float(self.get_key("fine_rotation")),
+            flip_horizontal=self._get_bool(self.get_key("flip_horizontal")),
+            flip_vertical=self._get_bool(self.get_key("flip_vertical")),
             autocrop=self._get_bool(self.get_key("autocrop"), True),
             autocrop_offset=self._get_int(self.get_key("autocrop_offset"), 2),
             autocrop_ratio=self._get_str(self.get_key("autocrop_ratio"), "3:2"),
@@ -146,6 +172,8 @@ class GeometryViewModel(BaseViewModel):
             autocrop_assist_luma=self._get_raw(
                 self.get_key("autocrop_assist_luma"), None
             ),
+            manual_crop=self._get_bool(self.get_key("manual_crop"), False),
+            manual_crop_rect=self._get_raw(self.get_key("manual_crop_rect"), None),
             keep_full_frame=self._get_bool(self.get_key("keep_full_frame"), False),
         )
 
@@ -175,6 +203,7 @@ class LabViewModel(BaseViewModel):
         super().__init__(data_source)
         self._keys = {
             "color_separation": "color_separation",
+            "saturation": "saturation",
             "clahe_strength": "clahe_strength",
             "sharpen": "sharpen",
             "crosstalk_matrix": "crosstalk_matrix",
@@ -190,6 +219,7 @@ class LabViewModel(BaseViewModel):
 
         return LabConfig(
             color_separation=self._get_float(self.get_key("color_separation"), 1.0),
+            saturation=self._get_float(self.get_key("saturation"), 1.0),
             clahe_strength=self._get_float(self.get_key("clahe_strength")),
             sharpen=self._get_float(self.get_key("sharpen"), 0.25),
             crosstalk_matrix=crosstalk,

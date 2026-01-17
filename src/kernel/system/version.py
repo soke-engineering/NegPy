@@ -1,6 +1,8 @@
 import os
 import sys
 import json
+import urllib.request
+from typing import Optional
 
 
 def get_app_version() -> str:
@@ -30,3 +32,44 @@ def get_app_version() -> str:
             return str(data.get("version", "unknown"))
     except Exception:
         return "unknown"
+
+
+def check_for_updates() -> Optional[str]:
+    """
+    Checks if there is new version available in github and if it is return it's version, else return none.
+    """
+    current_version = get_app_version()
+    if current_version == "unknown":
+        return None
+
+    url = "https://api.github.com/repos/marcinz606/NegPy/releases/latest"
+
+    try:
+        req = urllib.request.Request(
+            url,
+            headers={"User-Agent": "NegPy-Updater"},
+        )
+        with urllib.request.urlopen(req, timeout=3) as response:
+            if response.status == 200:
+                data = json.loads(response.read().decode())
+                latest_tag = data.get("tag_name", "").lstrip("v")
+
+                if not latest_tag:
+                    return None
+
+                def parse_version(v_str: str) -> list[int]:
+                    try:
+                        return [int(x) for x in v_str.split(".") if x.isdigit()]
+                    except Exception:
+                        return []
+
+                current_parts = parse_version(current_version)
+                latest_parts = parse_version(latest_tag)
+
+                if latest_parts > current_parts:
+                    return str(latest_tag)
+
+    except Exception:
+        pass
+
+    return None

@@ -2,6 +2,7 @@ import os
 from typing import Any, Optional
 from PIL import Image, ImageCms
 from src.kernel.system.config import APP_CONFIG
+from src.domain.models import ColorSpace
 
 
 class ColorService:
@@ -11,24 +12,36 @@ class ColorService:
 
     @staticmethod
     def apply_icc_profile(
-        pil_img: Image.Image, src_color_space: str, dst_profile_path: Optional[str]
+        pil_img: Image.Image,
+        src_color_space: str,
+        dst_profile_path: Optional[str],
+        inverse: bool = False,
     ) -> Image.Image:
         """
-        Applies ICC for proofing.
+        Applies ICC for proofing or correction.
+        If inverse=True, dst_profile_path is treated as the SOURCE profile,
+        and src_color_space as the DESTINATION.
         """
         if not dst_profile_path or not os.path.exists(dst_profile_path):
             return pil_img
 
         try:
-            profile_src: Any
-            if src_color_space == "Adobe RGB" and os.path.exists(
+            profile_working: Any
+            if src_color_space == ColorSpace.ADOBE_RGB.value and os.path.exists(
                 APP_CONFIG.adobe_rgb_profile
             ):
-                profile_src = ImageCms.getOpenProfile(APP_CONFIG.adobe_rgb_profile)
+                profile_working = ImageCms.getOpenProfile(APP_CONFIG.adobe_rgb_profile)
             else:
-                profile_src = ImageCms.createProfile("sRGB")
+                profile_working = ImageCms.createProfile("sRGB")
 
-            dst_profile: Any = ImageCms.getOpenProfile(dst_profile_path)
+            profile_selected: Any = ImageCms.getOpenProfile(dst_profile_path)
+
+            if inverse:
+                profile_src = profile_selected
+                profile_dst = profile_working
+            else:
+                profile_src = profile_working
+                profile_dst = profile_selected
 
             if pil_img.mode != "RGB":
                 pil_img = pil_img.convert("RGB")
@@ -36,7 +49,7 @@ class ColorService:
             result_icc = ImageCms.profileToProfile(
                 pil_img,
                 profile_src,
-                dst_profile,
+                profile_dst,
                 renderingIntent=ImageCms.Intent.RELATIVE_COLORIMETRIC,
                 outputMode="RGB",
                 flags=ImageCms.Flags.BLACKPOINTCOMPENSATION,
@@ -50,7 +63,7 @@ class ColorService:
         """
         AdobeRGB -> sRGB (approximate look).
         """
-        if src_color_space != "Adobe RGB":
+        if src_color_space != ColorSpace.ADOBE_RGB.value:
             return pil_img
 
         try:
@@ -72,3 +85,22 @@ class ColorService:
         except Exception:
             pass
         return pil_img
+
+    @staticmethod
+    def get_available_profiles() -> list[str]:
+        """
+        Returns list of available ICC profile paths.
+        """
+        built_in_icc = [
+            os.path.join("icc", f)
+            for f in os.listdir("icc")
+            if f.lower().endswith((".icc", ".icm"))
+        ]
+        user_icc = []
+        if os.path.exists(APP_CONFIG.user_icc_dir):
+            user_icc = [
+                os.path.join(APP_CONFIG.user_icc_dir, f)
+                for f in os.listdir(APP_CONFIG.user_icc_dir)
+                if f.lower().endswith((".icc", ".icm"))
+            ]
+        return sorted(built_in_icc + user_icc)

@@ -1,5 +1,5 @@
 import os
-from typing import Any, ContextManager
+from typing import Any, ContextManager, Tuple
 from src.infrastructure.loaders.pakon_loader import PakonLoader
 from src.infrastructure.loaders.tiff_loader import TiffLoader
 from src.infrastructure.loaders.rawpy_loader import RawpyLoader
@@ -16,7 +16,7 @@ class LoaderFactory:
         self._tiff = TiffLoader()
         self._rawpy = RawpyLoader()
 
-    def get_loader(self, file_path: str) -> ContextManager[Any]:
+    def get_loader(self, file_path: str) -> Tuple[ContextManager[Any], dict]:
         ext = os.path.splitext(file_path)[1].lower()
 
         if PakonLoader.can_handle(file_path):

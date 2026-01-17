@@ -33,6 +33,8 @@ GLOBAL_PERSIST_KEYS = {
     "hot_folder_mode",
     "last_picker_dir",
     "autocrop",
+    "manual_crop",
+    "crop_mode_str",
     "autocrop_ratio",
     "keep_full_frame",
 }
@@ -90,6 +92,15 @@ def init_session_state() -> None:
     if "dust_start_point" not in st.session_state:
         st.session_state.dust_start_point = None
 
+    if "crop_mode_str" not in st.session_state:
+        from src.features.geometry.models import CropMode
+
+        st.session_state["crop_mode_str"] = (
+            CropMode.MANUAL.value
+            if st.session_state.get("manual_crop")
+            else CropMode.AUTO.value
+        )
+
 
 def _to_ui_state_dict(config: WorkspaceConfig) -> Dict[str, Any]:
     """
@@ -121,6 +132,15 @@ def load_settings(force: bool = False) -> None:
                     continue
 
             st.session_state[key] = value
+
+        # Sync virtual crop mode string
+        from src.features.geometry.models import CropMode
+
+        st.session_state["crop_mode_str"] = (
+            CropMode.MANUAL.value
+            if st.session_state.get("manual_crop")
+            else CropMode.AUTO.value
+        )
 
 
 def save_settings(persist: bool = False) -> None:

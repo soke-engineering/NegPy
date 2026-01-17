@@ -1,10 +1,22 @@
 from dataclasses import dataclass, field, asdict
 from typing import Dict, Any, Optional
+from enum import Enum
 from src.features.exposure.models import ExposureConfig
 from src.features.geometry.models import GeometryConfig
 from src.features.lab.models import LabConfig
 from src.features.retouch.models import RetouchConfig, LocalAdjustmentConfig
 from src.features.toning.models import ToningConfig
+
+
+class ICCMode(Enum):
+    OUTPUT = "Output"
+    INPUT = "Input"
+
+
+class ColorSpace(Enum):
+    SRGB = "sRGB"
+    ADOBE_RGB = "Adobe RGB"
+    GREYSCALE = "Greyscale"
 
 
 @dataclass(frozen=True)
@@ -15,15 +27,18 @@ class ExportConfig:
 
     export_path: str = "export"
     export_fmt: str = "JPEG"
-    export_color_space: str = "sRGB"
+    export_color_space: str = ColorSpace.SRGB.value
+    paper_aspect_ratio: str = "Original"
     export_print_size: float = 27.0
     export_dpi: int = 300
     export_add_border: bool = False
     export_border_size: float = 0.0
     export_border_color: str = "#ffffff"
+    use_original_res: bool = False
     filename_pattern: str = "positive_{{ original_name }}"
     apply_icc: bool = False
     icc_profile_path: Optional[str] = None
+    icc_invert: bool = False
 
 
 @dataclass(frozen=True)

@@ -1,11 +1,14 @@
 import streamlit as st
 import os
+import numpy as np
 from PIL import Image
 from src.ui.state.session_context import SessionContext
 from src.services.rendering.preview_manager import PreviewManager
 from src.services.rendering.image_processor import ImageProcessor
 from src.infrastructure.display.color_mgmt import ColorService
 from src.infrastructure.filesystem.watcher import FolderWatchService
+from src.features.exposure.logic import calculate_wb_shifts
+from src.ui.state.view_models import ExposureViewModel
 
 
 class AppController:
@@ -57,22 +60,56 @@ class AppController:
         )
 
         if needs_reload:
-            raw, dims = self.preview_service.load_linear_preview(
+            raw, dims, metadata = self.preview_service.load_linear_preview(
                 current_file["path"], current_color_space
             )
             self.ctx.preview_raw = raw
             self.ctx.original_res = dims
             self.ctx.last_file = current_file["name"]
             self.ctx.last_preview_color_space = current_color_space
-            
-            # Clear stale metrics
+
+            # Apply camera orientation if this is a fresh load (no settings yet)
+            f_hash = current_file.get("hash")
+            if f_hash and f_hash not in self.ctx.session.file_settings:
+                detected_rot = metadata.get("orientation", 0)
+                if detected_rot != 0:
+                    st.session_state.rotation = detected_rot
+
             if "last_metrics" in st.session_state:
                 del st.session_state.last_metrics
             if "base_positive" in st.session_state:
                 del st.session_state.base_positive
+            if "retouch_source" in st.session_state:
+                del st.session_state.retouch_source
 
             return True
         return False
+
+    def handle_wb_pick(self, nx: float, ny: float) -> None:
+        """
+        Calculates and applies WB shifts from a sampled point.
+        """
+        img = st.session_state.get("base_positive")
+        if img is None:
+            return
+
+        h, w = img.shape[:2]
+        px = int(np.clip(nx * w, 0, w - 1))
+        py = int(np.clip(ny * h, 0, h - 1))
+        sampled = img[py, px]
+
+        dm, dy = calculate_wb_shifts(sampled)
+
+        vm = ExposureViewModel()
+        st.session_state[vm.get_key("wb_cyan")] = 0.0
+        st.session_state[vm.get_key("wb_magenta")] = float(np.clip(dm, -1, 1))
+        st.session_state[vm.get_key("wb_yellow")] = float(np.clip(dy, -1, 1))
+        st.session_state[vm.get_key("pick_wb")] = False
+        st.toast(f"WB Picked: M={dm:.2f}, Y={dy:.2f}")
+
+        from src.ui.state.state_manager import save_settings
+
+        save_settings()
 
     def process_frame(self) -> Image.Image:
         """
@@ -104,11 +141,16 @@ class AppController:
         st.session_state.last_metrics = metrics
         if "base_positive" in metrics:
             st.session_state.base_positive = metrics["base_positive"]
+        if "retouch_source" in metrics:
+            st.session_state.retouch_source = metrics["retouch_source"]
 
         color_space = self.ctx.last_preview_color_space
-        if self.ctx.session.icc_profile_path:
+        target_icc = self.ctx.session.icc_profile_path
+        inverse = self.ctx.session.icc_invert
+
+        if target_icc:
             pil_prev = self.color_service.apply_icc_profile(
-                pil_prev, color_space, self.ctx.session.icc_profile_path
+                pil_prev, color_space, target_icc, inverse=inverse
             )
         else:
             pil_prev = self.color_service.simulate_on_srgb(pil_prev, color_space)

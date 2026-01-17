@@ -63,7 +63,6 @@ class ExportService:
         file_meta: Dict[str, str],
         f_params: WorkspaceConfig,
         sidebar_data: Any,
-        icc_profile_path: Any,
     ) -> str:
         """
         Export wrapper for UI calls.
@@ -71,12 +70,15 @@ class ExportService:
         export_settings = ExportConfig(
             export_fmt=sidebar_data.out_fmt,
             export_color_space=sidebar_data.color_space,
+            paper_aspect_ratio=sidebar_data.paper_aspect_ratio,
             export_print_size=sidebar_data.print_width,
             export_dpi=sidebar_data.print_dpi,
+            use_original_res=sidebar_data.use_original_res,
             export_add_border=sidebar_data.add_border,
             export_border_size=sidebar_data.border_size,
             export_border_color=sidebar_data.border_color,
-            icc_profile_path=icc_profile_path if sidebar_data.apply_icc else None,
+            icc_profile_path=sidebar_data.icc_profile_path,
+            icc_invert=sidebar_data.icc_invert,
             export_path=sidebar_data.export_path,
             filename_pattern=sidebar_data.filename_pattern,
         )
@@ -103,11 +105,7 @@ class ExportService:
         total_files = len(files)
         start_time = time.perf_counter()
 
-        icc_path = (
-            st.session_state.session.icc_profile_path
-            if sidebar_data.apply_icc
-            else None
-        )
+        icc_path = sidebar_data.icc_profile_path
 
         with status_area.status(
             f"Printing {total_files} images...", expanded=True
@@ -120,12 +118,15 @@ class ExportService:
                     f_export_settings = ExportConfig(
                         export_fmt=sidebar_data.out_fmt,
                         export_color_space=sidebar_data.color_space,
+                        paper_aspect_ratio=sidebar_data.paper_aspect_ratio,
                         export_print_size=sidebar_data.print_width,
                         export_dpi=sidebar_data.print_dpi,
+                        use_original_res=sidebar_data.use_original_res,
                         export_add_border=sidebar_data.add_border,
                         export_border_size=sidebar_data.border_size,
                         export_border_color=sidebar_data.border_color,
                         icc_profile_path=icc_path,
+                        icc_invert=sidebar_data.icc_invert,
                         export_path=sidebar_data.export_path,
                         filename_pattern=sidebar_data.filename_pattern,
                     )

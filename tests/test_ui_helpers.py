@@ -1,6 +1,6 @@
 import numpy as np
 from src.features.exposure.models import EXPOSURE_CONSTANTS
-from src.ui.components.sidebar.helpers import apply_wb_gains_to_sliders
+from src.ui.components.helpers import apply_wb_gains_to_sliders
 
 
 def test_apply_wb_gains_identity():

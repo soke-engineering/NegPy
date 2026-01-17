@@ -60,7 +60,7 @@ jobs:
           npm version ${{ github.event.inputs.version }} --no-git-tag-version --allow-same-version
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.13'
           cache: 'pip'
@@ -94,6 +94,7 @@ jobs:
   publish:
     needs: build
     runs-on: ubuntu-latest
+    environment: production
     permissions:
       contents: write
     steps:

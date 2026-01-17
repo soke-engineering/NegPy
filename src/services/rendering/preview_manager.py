@@ -18,7 +18,7 @@ class PreviewManager:
     @staticmethod
     def load_linear_preview(
         file_path: str, color_space: str
-    ) -> Tuple[ImageBuffer, Dimensions]:
+    ) -> Tuple[ImageBuffer, Dimensions, dict]:
         """
         Loads linear RGB, downsamples for display.
         """
@@ -26,7 +26,8 @@ class PreviewManager:
         if color_space == "Adobe RGB":
             raw_color_space = rawpy.ColorSpace.Adobe
 
-        with loader_factory.get_loader(file_path) as raw:
+        ctx_mgr, metadata = loader_factory.get_loader(file_path)
+        with ctx_mgr as raw:
             algo = get_best_demosaic_algorithm(raw)
             rgb = raw.postprocess(
                 gamma=(1, 1),
@@ -58,4 +59,4 @@ class PreviewManager:
             else:
                 preview_raw = full_linear.copy()
 
-            return ensure_image(preview_raw), (h_orig, w_orig)
+            return ensure_image(preview_raw), (h_orig, w_orig), metadata

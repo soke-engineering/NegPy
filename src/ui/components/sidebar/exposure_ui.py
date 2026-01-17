@@ -1,6 +1,9 @@
 import streamlit as st
 from src.ui.state.view_models import ExposureViewModel
-from src.ui.components.sidebar.helpers import render_control_slider
+from src.ui.components.helpers import (
+    render_control_slider,
+    render_control_checkbox,
+)
 
 
 def render_exposure_section() -> None:
@@ -39,6 +42,22 @@ def render_exposure_section() -> None:
                     key=vm.get_key("wb_yellow"),
                     help_text="Yellow filtration (removes Blue cast).",
                 )
+
+            def on_pick_wb_change() -> None:
+                # Check the widget state directly via its shadow key
+                if st.session_state.get(f"w_{vm.get_key('pick_wb')}"):
+                    st.session_state[vm.get_key("wb_cyan")] = 0.0
+                    st.session_state[vm.get_key("wb_magenta")] = 0.0
+                    st.session_state[vm.get_key("wb_yellow")] = 0.0
+
+            render_control_checkbox(
+                "Pick WB",
+                default_val=False,
+                key=vm.get_key("pick_wb"),
+                is_toggle=True,
+                on_change=on_pick_wb_change,
+                help_text="Click on a neutral grey area in the preview to balance colors.",
+            )
 
         e1, e2 = st.columns(2)
         with e1:

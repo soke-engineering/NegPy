@@ -87,6 +87,50 @@ def enforce_roi_aspect_ratio(
     return int(max(0, y1)), int(min(h, y2)), int(max(0, x1)), int(min(w, x2))
 
 
+def get_manual_rect_coords(
+    img: ImageBuffer,
+    manual_rect: Tuple[float, float, float, float],
+    orig_shape: Tuple[int, int],
+    rotation_k: int = 0,
+    fine_rotation: float = 0.0,
+    flip_horizontal: bool = False,
+    flip_vertical: bool = False,
+    offset_px: int = 0,
+    scale_factor: float = 1.0,
+) -> ROI:
+    """
+    Maps normalized manual crop rect (RAW coords) to pixel ROI in TRANSFORMED image space.
+    """
+    h_curr, w_curr = img.shape[:2]
+    x1_n, y1_n, x2_n, y2_n = manual_rect
+
+    corners = [(x1_n, y1_n), (x2_n, y1_n), (x2_n, y2_n), (x1_n, y2_n)]
+    mapped_corners = []
+
+    for nx, ny in corners:
+        mx, my = map_coords_to_geometry(
+            nx,
+            ny,
+            orig_shape,
+            rotation_k,
+            fine_rotation,
+            flip_horizontal,
+            flip_vertical,
+            roi=None,
+        )
+        mapped_corners.append((mx, my))
+
+    xs = [p[0] * w_curr for p in mapped_corners]
+    ys = [p[1] * h_curr for p in mapped_corners]
+
+    ix1, ix2 = int(min(xs)), int(max(xs))
+    iy1, iy2 = int(min(ys)), int(max(ys))
+
+    roi = (iy1, iy2, ix1, ix2)
+    margin = offset_px * scale_factor
+    return apply_margin_to_roi(roi, h_curr, w_curr, margin)
+
+
 def get_manual_crop_coords(
     img: ImageBuffer,
     offset_px: int = 0,
@@ -147,24 +191,31 @@ def map_coords_to_geometry(
     orig_shape: Tuple[int, int],
     rotation_k: int = 0,
     fine_rotation: float = 0.0,
+    flip_horizontal: bool = False,
+    flip_vertical: bool = False,
     roi: Optional[ROI] = None,
 ) -> Tuple[float, float]:
     """
-    Raw (0-1) -> Rotated/Cropped (0-1) coords.
+    Maps raw coordinates to geometry-transformed space.
     """
     h_orig, w_orig = orig_shape
     px, py = nx * w_orig, ny * h_orig
     h, w = h_orig, w_orig
 
     k = rotation_k % 4
-    if k == 1:  # 90 CCW
+    if k == 1:
         px, py = py, w - px
         h, w = w, h
-    elif k == 2:  # 180
+    elif k == 2:
         px, py = w - px, h - py
-    elif k == 3:  # 270 CCW (90 CW)
+    elif k == 3:
         px, py = h - py, px
         h, w = w, h
+
+    if flip_horizontal:
+        px = w - px
+    if flip_vertical:
+        py = h - py
 
     if fine_rotation != 0.0:
         center = (w / 2.0, h / 2.0)

@@ -1,8 +1,10 @@
 import streamlit as st
 from src.features.retouch.models import LocalAdjustmentConfig
-from src.ui.components.sidebar.helpers import (
+from src.ui.components.helpers import (
     render_control_checkbox,
     render_control_selectbox,
+    render_control_slider,
+    render_control_range_slider,
 )
 
 
@@ -51,67 +53,57 @@ def render_local_adjustments() -> None:
             c1, c2 = st.columns(2)
             if c2.button("Delete Layer", width="stretch"):
                 st.session_state.local_adjustments.pop(selected_idx)
-                # Select the previous layer or the first one
                 st.session_state.active_adjustment_idx = max(0, selected_idx - 1)
                 st.rerun()
 
             st.markdown("---")
 
-            s_key = f"adj_str_{selected_idx}"
-            if s_key not in st.session_state:
-                st.session_state[s_key] = float(active_adj.strength)
-            active_adj.strength = st.slider(
+            active_adj.strength = render_control_slider(
                 "Exposure (EV)",
                 -1.0,
                 1.0,
+                default_val=float(active_adj.strength),
                 step=0.01,
-                key=s_key,
+                key=f"adj_str_{selected_idx}",
             )
 
-            r_key = f"adj_rad_{selected_idx}"
-            if r_key not in st.session_state:
-                st.session_state[r_key] = int(active_adj.radius)
             active_adj.radius = int(
-                st.slider(
+                render_control_slider(
                     "Brush Size",
-                    5,
-                    250,
-                    step=1,
-                    key=r_key,
+                    5.0,
+                    250.0,
+                    default_val=float(active_adj.radius),
+                    step=1.0,
+                    key=f"adj_rad_{selected_idx}",
                 )
             )
 
-            f_key = f"adj_fth_{selected_idx}"
-            if f_key not in st.session_state:
-                st.session_state[f_key] = float(active_adj.feather)
-            active_adj.feather = st.slider(
+            active_adj.feather = render_control_slider(
                 "Feathering",
                 0.0,
                 1.0,
+                default_val=float(active_adj.feather),
                 step=0.05,
-                key=f_key,
+                key=f"adj_fth_{selected_idx}",
             )
 
             st.caption("Targeting (Range)")
-            lr_key = f"adj_lr_{selected_idx}"
-            if lr_key not in st.session_state:
-                st.session_state[lr_key] = active_adj.luma_range
-            active_adj.luma_range = st.slider(
+            active_adj.luma_range = render_control_range_slider(
                 "Luminance Range",
                 0.0,
                 1.0,
-                key=lr_key,
+                default_val=active_adj.luma_range,
+                step=0.01,
+                key=f"adj_lr_{selected_idx}",
             )
 
-            ls_key = f"adj_ls_{selected_idx}"
-            if ls_key not in st.session_state:
-                st.session_state[ls_key] = float(active_adj.luma_softness)
-            active_adj.luma_softness = st.slider(
+            active_adj.luma_softness = render_control_slider(
                 "Range Softness",
                 0.0,
                 1.0,
+                default_val=float(active_adj.luma_softness),
                 step=0.01,
-                key=ls_key,
+                key=f"adj_ls_{selected_idx}",
             )
 
             c1, c2 = st.columns(2)

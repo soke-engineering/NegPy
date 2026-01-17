@@ -6,6 +6,7 @@ from src.features.geometry.logic import (
     apply_fine_rotation,
     get_autocrop_coords,
     get_manual_crop_coords,
+    get_manual_rect_coords,
 )
 
 
@@ -18,10 +19,17 @@ class GeometryProcessor:
         self.config = config
 
     def process(self, image: ImageBuffer, context: PipelineContext) -> ImageBuffer:
+        orig_shape = (image.shape[0], image.shape[1])
         img = image
 
         if self.config.rotation != 0:
             img = np.rot90(img, k=self.config.rotation)
+
+        if self.config.flip_horizontal:
+            img = np.ascontiguousarray(np.fliplr(img))
+
+        if self.config.flip_vertical:
+            img = np.ascontiguousarray(np.flipud(img))
 
         if self.config.fine_rotation != 0.0:
             img = apply_fine_rotation(img, self.config.fine_rotation)
@@ -29,9 +37,24 @@ class GeometryProcessor:
         context.metrics["geometry_params"] = {
             "rotation": self.config.rotation,
             "fine_rotation": self.config.fine_rotation,
+            "flip_horizontal": self.config.flip_horizontal,
+            "flip_vertical": self.config.flip_vertical,
         }
 
-        if self.config.autocrop:
+        if self.config.manual_crop and self.config.manual_crop_rect:
+            roi = get_manual_rect_coords(
+                img,
+                self.config.manual_crop_rect,
+                orig_shape=orig_shape,
+                rotation_k=self.config.rotation,
+                fine_rotation=self.config.fine_rotation,
+                flip_horizontal=self.config.flip_horizontal,
+                flip_vertical=self.config.flip_vertical,
+                offset_px=0,
+                scale_factor=context.scale_factor,
+            )
+            context.active_roi = roi
+        elif self.config.autocrop:
             roi = get_autocrop_coords(
                 img,
                 offset_px=self.config.autocrop_offset,
