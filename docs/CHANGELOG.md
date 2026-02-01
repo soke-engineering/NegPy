@@ -1,6 +1,10 @@
 # Change Log
 
 
+## 0.9.8
+
+- Fix white image/thumbnail on file change when not using batch analysis.
+
 ## 0.9.7
 
 - Improve batch normalization by discarding outliers before calculating of averages.
