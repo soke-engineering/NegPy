@@ -30,12 +30,29 @@ class NormalizationProcessor:
             bounds = LogNegativeBounds(floors=self.config.local_floors, ceils=self.config.local_ceils)
         else:
             cached_buffer = context.metrics.get("log_bounds_buffer_val")
-            if "log_bounds" in context.metrics and cached_buffer is not None and abs(cached_buffer - self.config.analysis_buffer) < 1e-5:
+            cached_norm = context.metrics.get("log_bounds_norm_val")
+
+            needs_reanalysis = (
+                "log_bounds" not in context.metrics
+                or cached_buffer is None
+                or abs(cached_buffer - self.config.analysis_buffer) > 1e-5
+                or cached_norm != self.config.e6_normalize
+            )
+
+            if not needs_reanalysis:
                 bounds = context.metrics["log_bounds"]
             else:
-                bounds = analyze_log_exposure_bounds(image, context.active_roi, self.config.analysis_buffer)
+                bounds = analyze_log_exposure_bounds(
+                    image,
+                    context.active_roi,
+                    self.config.analysis_buffer,
+                    process_mode=context.process_mode,
+                    e6_normalize=self.config.e6_normalize,
+                )
                 context.metrics["log_bounds"] = bounds
                 context.metrics["log_bounds_buffer_val"] = self.config.analysis_buffer
+                context.metrics["log_bounds_norm_val"] = self.config.e6_normalize
+        
 
         res = normalize_log_image(img_log, bounds)
         context.metrics["normalized_log"] = res
@@ -64,6 +81,12 @@ class PhotometricProcessor:
             self.config.wb_yellow * cmy_max,
         )
 
+        mode_val = 0
+        if context.process_mode == ProcessMode.BW:
+            mode_val = 1
+        elif context.process_mode == ProcessMode.E6:
+            mode_val = 2
+
         img_pos = apply_characteristic_curve(
             image,
             params_r=(pivots[0], slope),
@@ -76,6 +99,7 @@ class PhotometricProcessor:
             shoulder_width=self.config.shoulder_width,
             shoulder_hardness=self.config.shoulder_hardness,
             cmy_offsets=cmy_offsets,
+            mode=mode_val,
         )
 
         if context.process_mode == ProcessMode.BW:

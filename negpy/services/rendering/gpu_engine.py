@@ -18,6 +18,7 @@ from negpy.features.geometry.logic import (
     get_manual_rect_coords,
     get_autocrop_coords,
     map_coords_to_geometry,
+    apply_fine_rotation,
 )
 from negpy.features.exposure.normalization import (
     analyze_log_exposure_bounds,
@@ -129,7 +130,9 @@ class GPUEngine:
             return
         device = self.gpu.device
         self._sampler = device.create_sampler(min_filter="linear", mag_filter="linear")
-        self._alignment = self.gpu.limits.get("min_uniform_buffer_offset_alignment", UNIFORM_ALIGNMENT_DEFAULT)
+
+        hw_min = self.gpu.limits.get("min_uniform_buffer_offset_alignment", 256)
+        self._alignment = max(256, hw_min)
 
         for name, path in self._shaders.items():
             self._pipelines[name] = self._create_pipeline(path)
@@ -164,8 +167,8 @@ class GPUEngine:
         idx = self._uniform_names.index(name)
         sizes = {
             "geometry": 32,
-            "normalization": 32,
-            "exposure": 80,
+            "normalization": 64,
+            "exposure": 112,
             "clahe_u": 32,
             "retouch_u": 40,
             "lab": 64,
@@ -289,11 +292,15 @@ class GPUEngine:
                 analysis_source = np.fliplr(analysis_source)
             if settings.geometry.flip_vertical:
                 analysis_source = np.flipud(analysis_source)
+            if settings.geometry.fine_rotation != 0.0:
+                analysis_source = apply_fine_rotation(analysis_source, settings.geometry.fine_rotation)
 
             bounds = analyze_log_exposure_bounds(
                 analysis_source,
                 roi if not tiling_mode else None,
                 settings.process.analysis_buffer,
+                process_mode=settings.process.process_mode,
+                e6_normalize=settings.process.e6_normalize,
             )
 
         pw, ph, cw, ch, ox, oy = self._calculate_layout_dims(settings, crop_w, crop_h, render_size_ref)
@@ -571,7 +578,17 @@ class GPUEngine:
             g_data = b"\x00" * 32
 
         f, c = bounds.floors, bounds.ceils
-        n_data = struct.pack("ffffffff", f[0], f[1], f[2], 0.0, c[0], c[1], c[2], 0.0)
+        mode_val = 0
+        if settings.process.process_mode == ProcessMode.BW:
+            mode_val = 1
+        elif settings.process.process_mode == ProcessMode.E6:
+            mode_val = 2
+
+        n_data = (
+            struct.pack("ffff", f[0], f[1], f[2], 0.0)
+            + struct.pack("ffff", c[0], c[1], c[2], 0.0)
+            + struct.pack("II", mode_val, (1 if settings.process.e6_normalize else 0))
+        )
 
         from negpy.features.exposure.models import EXPOSURE_CONSTANTS
 
@@ -635,9 +652,13 @@ class GPUEngine:
         )
 
         lab = settings.lab
-        m_raw = lab.crosstalk_matrix if lab.crosstalk_matrix else [1, 0, 0, 0, 1, 0, 0, 0, 1]
+        m_raw = lab.crosstalk_matrix
+        if m_raw is None:
+            if settings.process.process_mode == ProcessMode.E6:
+                m_raw = lab.E6_MATRIX
+            else:
+                m_raw = lab.C41_MATRIX
 
-        # Match CPU logic: Strength is amount above 1.0
         sep_strength = max(0.0, lab.color_separation - 1.0)
 
         cal = np.array(m_raw).reshape(3, 3)
@@ -751,7 +772,6 @@ class GPUEngine:
         else:
             if use_orig:
                 content_w, content_h = cw, ch
-                # Calculate paper based on ratio but ensuring it fits the content
                 try:
                     w_r, h_r = map(float, settings.export.paper_aspect_ratio.split(":"))
                     paper_ratio = w_r / h_r
@@ -894,7 +914,6 @@ class GPUEngine:
         """Processes ultra-high resolution images using memory-efficient tiling."""
         h, w = img.shape[:2]
 
-        # 1. Prepare transformed source for analysis
         img_rot = img
         if settings.geometry.rotation != 0:
             img_rot = np.rot90(img_rot, k=settings.geometry.rotation)
@@ -902,8 +921,9 @@ class GPUEngine:
             img_rot = np.fliplr(img_rot)
         if settings.geometry.flip_vertical:
             img_rot = np.flipud(img_rot)
+        if settings.geometry.fine_rotation != 0.0:
+            img_rot = apply_fine_rotation(img_rot, settings.geometry.fine_rotation)
 
-        # 2. Run preview path to get ROI and CLAHE metrics
         preview_scale = APP_CONFIG.preview_render_size / max(h, w)
         img_small = cv2.resize(img, (int(w * preview_scale), int(h * preview_scale)))
         _, metrics_ref = self.process_to_texture(img_small, settings, scale_factor=scale_factor)
@@ -920,7 +940,6 @@ class GPUEngine:
         read_buf.unmap()
         read_buf.destroy()
 
-        # 3. Calculate full-res ROI
         roi, rot = metrics_ref["active_roi"], settings.geometry.rotation % 4
         w_rot, h_rot = (h, w) if rot in (1, 3) else (w, h)
         h_small, w_small = img_small.shape[:2]
@@ -929,7 +948,6 @@ class GPUEngine:
         y1, y2, x1, x2 = int(roi[0] * sy), int(roi[1] * sy), int(roi[2] * sx), int(roi[3] * sx)
         crop_w, crop_h = x2 - x1, y2 - y1
 
-        # 4. Determine Global Exposure Bounds
         if settings.process.use_roll_average and settings.process.is_locked_initialized:
             global_bounds = LogNegativeBounds(
                 floors=settings.process.locked_floors,
@@ -941,7 +959,13 @@ class GPUEngine:
                 ceils=settings.process.local_ceils,
             )
         else:
-            global_bounds = analyze_log_exposure_bounds(img_rot, roi=(y1, y2, x1, x2), analysis_buffer=settings.process.analysis_buffer)
+            global_bounds = analyze_log_exposure_bounds(
+                img_rot,
+                roi=(y1, y2, x1, x2),
+                analysis_buffer=settings.process.analysis_buffer,
+                process_mode=settings.process.process_mode,
+                e6_normalize=settings.process.e6_normalize,
+            )
 
         paper_w, paper_h, content_w, content_h, off_x, off_y = self._calculate_layout_dims(settings, crop_w, crop_h, None)
         full_source_res = np.zeros((crop_h, crop_w, 3), dtype=np.float32)

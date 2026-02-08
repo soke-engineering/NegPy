@@ -6,6 +6,7 @@ from enum import StrEnum
 class ProcessMode(StrEnum):
     C41 = "C41"
     BW = "B&W"
+    E6 = "E-6"
 
 
 @dataclass(frozen=True)
@@ -16,6 +17,7 @@ class ProcessConfig:
 
     process_mode: str = ProcessMode.C41
     analysis_buffer: float = 0.07
+    e6_normalize: bool = True
     use_roll_average: bool = False
     locked_floors: tuple[float, float, float] = (0.0, 0.0, 0.0)
     locked_ceils: tuple[float, float, float] = (0.0, 0.0, 0.0)

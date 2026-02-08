@@ -1,14 +1,16 @@
-from typing import Tuple, List, Optional
+from typing import Tuple, Optional
 import numpy as np
 from numba import njit, prange  # type: ignore
 from negpy.domain.types import ImageBuffer
 from negpy.kernel.image.validation import ensure_image
+from negpy.features.process.models import ProcessMode
 
 
 @njit(parallel=True, cache=True, fastmath=True)
 def _normalize_log_image_jit(img_log: np.ndarray, floors: np.ndarray, ceils: np.ndarray) -> np.ndarray:
     """
     Log -> 0.0-1.0 (Linear stretch).
+    Supports both f < c (Negative) and f > c (Positive) mapping.
     """
     h, w, c = img_log.shape
     res = np.empty_like(img_log)
@@ -19,7 +21,16 @@ def _normalize_log_image_jit(img_log: np.ndarray, floors: np.ndarray, ceils: np.
             for ch in range(3):
                 f = floors[ch]
                 c_val = ceils[ch]
-                norm = (img_log[y, x, ch] - f) / (max(c_val - f, epsilon))
+                delta = c_val - f
+
+                denom = delta
+                if abs(delta) < epsilon:
+                    if delta >= 0:
+                        denom = epsilon
+                    else:
+                        denom = -epsilon
+
+                norm = (img_log[y, x, ch] - f) / denom
                 if norm < 0.0:
                     norm = 0.0
                 elif norm > 1.0:
@@ -55,25 +66,6 @@ def get_analysis_crop(img: ImageBuffer, buffer_ratio: float) -> ImageBuffer:
     return img[cut_h : h - cut_h, cut_w : w - cut_w]
 
 
-def measure_log_negative_bounds(img: ImageBuffer) -> LogNegativeBounds:
-    """
-    Detects floor/ceiling (0.5% - 99.5%).
-    """
-    floors: List[float] = []
-    ceils: List[float] = []
-    for ch in range(3):
-        # 0.5th and 99.5th percentiles capture the usable density range
-        # but avoiding clipping
-        f, c = np.percentile(img[:, :, ch], [0.5, 99.5])
-        floors.append(float(f))
-        ceils.append(float(c))
-
-    return LogNegativeBounds(
-        floors=(floors[0], floors[1], floors[2]),
-        ceils=(ceils[0], ceils[1], ceils[2]),
-    )
-
-
 def normalize_log_image(img_log: ImageBuffer, bounds: LogNegativeBounds) -> ImageBuffer:
     """
     Stretches log-data to fit [0, 1].
@@ -88,6 +80,8 @@ def analyze_log_exposure_bounds(
     image: ImageBuffer,
     roi: Optional[tuple[int, int, int, int]] = None,
     analysis_buffer: float = 0.0,
+    process_mode: str = ProcessMode.C41,
+    e6_normalize: bool = True,
 ) -> LogNegativeBounds:
     """
     Performs full analysis pass on a linear image to find density floors/ceils.
@@ -102,4 +96,27 @@ def analyze_log_exposure_bounds(
     if analysis_buffer > 0:
         img_log = get_analysis_crop(img_log, analysis_buffer)
 
-    return measure_log_negative_bounds(img_log)
+    p_low, p_high = 0.5, 99.5
+    fixed_range = 3.0
+
+    if process_mode == ProcessMode.E6:
+        p_low, p_high = 99.9, 0.01
+        fixed_range = -3.0
+
+    floors = []
+    ceils = []
+    for ch in range(3):
+        data = img_log[:, :, ch]
+        f = np.percentile(data, p_low)
+        floors.append(float(f))
+
+        if process_mode != ProcessMode.E6 or e6_normalize:
+            c = np.percentile(data, p_high)
+            ceils.append(float(c))
+        else:
+            ceils.append(float(f + fixed_range))
+
+    return LogNegativeBounds(
+        (floors[0], floors[1], floors[2]),
+        (ceils[0], ceils[1], ceils[2]),
+    )
