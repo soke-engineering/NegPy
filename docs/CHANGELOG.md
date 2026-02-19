@@ -1,5 +1,17 @@
 # Change Log
 
+## 0.9.13
+
+- Added **Shadow Color Cast Removal**: aggressively target and neutralize color casts in the deepest shadows.
+- Added **Regional Color Timing**: independent CMY adjustment for Global, Shadows, and Highlights tonal regions.
+- Added **Vibrance Slider**: selectively enhance muted colors while protecting already vibrant tones.
+- Added **Chroma Denoise Slider**: reduce digital color noise in LAB space while preserving natural film grain in the L-channel.
+- Added **White & Black Point Offsets**: manual sliders to adjust normalization boundaries for precise highlight recovery or shadow recovery on top of auto exposure.
+- Added classic Shadows & Highlights slider using dynamic Gaussian-weighted offsets.
+- Reordered LAB processing pipeline for maximum signal integrity.
+- Many **UI refinements**
+- Added popup to ensure that export folder is properly set.
+
 ## 0.9.12
 
 - Added macOS Intel build

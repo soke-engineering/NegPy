@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QToolButton,
 )
-from PyQt6.QtCore import QSize
+from PyQt6.QtCore import QSize, Qt
 import qtawesome as qta
 from negpy.desktop.controller import AppController
 from negpy.desktop.view.styles.theme import THEME
@@ -31,31 +31,6 @@ class ActionToolbar(QWidget):
 
         icon_color = THEME.text_primary
         icon_size = QSize(18, 18)
-
-        # High-visibility styling
-        self.setStyleSheet(f"""
-            QToolButton, QPushButton {{
-                font-size: 14px;
-                padding: 8px 16px;
-                min-width: 60px;
-                background-color: #333;
-                border: 1px solid #444;
-                border-radius: 4px;
-                color: {THEME.text_primary};
-            }}
-            QToolButton:hover, QPushButton:hover {{
-                background-color: #444;
-                border: 1px solid #555;
-            }}
-            QPushButton#export_btn {{
-                background-color: {THEME.accent_primary};
-                font-weight: bold;
-                padding: 10px 30px;
-            }}
-            QPushButton#export_btn:hover {{
-                background-color: {THEME.accent_secondary};
-            }}
-        """)
 
         row1 = QHBoxLayout()
         row1.addStretch()
@@ -127,6 +102,11 @@ class ActionToolbar(QWidget):
         self.btn_export.setObjectName("export_btn")
         self.btn_export.setIcon(qta.icon("fa5s.check-circle", color="white"))
         self.btn_export.setIconSize(QSize(20, 20))
+        self.btn_export.setToolTip("Export the current image with applied settings (E)")
+
+        for btn in [self.btn_copy, self.btn_paste, self.btn_save, self.btn_export, self.btn_reset, self.btn_unload]:
+            btn.setFixedHeight(38)
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
         row2.addWidget(self.btn_copy)
         row2.addWidget(self.btn_paste)

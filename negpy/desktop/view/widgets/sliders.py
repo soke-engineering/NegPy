@@ -24,6 +24,7 @@ class BaseSlider(QWidget):
         max_val: float,
         default_val: float,
         precision: int = 100,
+        has_neutral: bool = False,
         parent=None,
     ):
         super().__init__(parent)
@@ -33,6 +34,8 @@ class BaseSlider(QWidget):
         self._precision = precision
 
         self.slider = QSlider(Qt.Orientation.Horizontal)
+        if has_neutral:
+            self.slider.setObjectName("neutral_slider")
         self.slider.setRange(int(min_val * self._precision), int(max_val * self._precision))
         self.slider.setValue(int(default_val * self._precision))
 
@@ -99,12 +102,14 @@ class SignalSlider(BaseSlider):
         step: float = 0.01,
         precision: int = 100,
         color: str = None,
+        has_neutral: bool = False,
         parent=None,
     ):
-        super().__init__(min_val, max_val, default_val, precision=precision, parent=parent)
+        super().__init__(min_val, max_val, default_val, precision=precision, has_neutral=has_neutral, parent=parent)
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
+        layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
         self.label = QLabel(label)
         self.label.setMinimumWidth(80)
@@ -121,26 +126,6 @@ class SignalSlider(BaseSlider):
         layout.addWidget(self.slider)
         layout.addWidget(self.spin)
 
-        if color:
-            self.slider.setStyleSheet(
-                f"""
-                QSlider::handle:horizontal {{
-                    background-color: {color};
-                    border: 1px solid #555;
-                    width: 10px;
-                    height: 10px;
-                    margin: -3px 0;
-                    border-radius: 5px;
-                }}
-                QSlider::groove:horizontal {{
-                    border: 1px solid #333;
-                    height: 4px;
-                    background: #222;
-                    border-radius: 2px;
-                }}
-            """
-            )
-
 
 class CompactSlider(BaseSlider):
     """
@@ -156,15 +141,17 @@ class CompactSlider(BaseSlider):
         step: float = 0.01,
         precision: int = 100,
         color: str = None,
+        has_neutral: bool = False,
         parent=None,
     ):
-        super().__init__(min_val, max_val, default_val, precision=precision, parent=parent)
+        super().__init__(min_val, max_val, default_val, precision=precision, has_neutral=has_neutral, parent=parent)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(2, 2, 2, 2)
         layout.setSpacing(2)
 
         header = QHBoxLayout()
+        header.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         self.label = QLabel(label)
         self.label.setStyleSheet(f"font-size: {THEME.font_size_base}px; color: {color if color else THEME.text_secondary};")
 
@@ -182,26 +169,6 @@ class CompactSlider(BaseSlider):
         header.addWidget(self.label)
         header.addStretch()
         header.addWidget(self.spin)
-
-        if color:
-            self.slider.setStyleSheet(
-                f"""
-                QSlider::handle:horizontal {{
-                    background-color: {color};
-                    border: 1px solid #555;
-                    width: 10px;
-                    height: 10px;
-                    margin: -3px 0;
-                    border-radius: 5px;
-                }}
-                QSlider::groove:horizontal {{
-                    border: 1px solid #333;
-                    height: 4px;
-                    background: #222;
-                    border-radius: 2px;
-                }}
-            """
-            )
 
         layout.addLayout(header)
         layout.addWidget(self.slider)
