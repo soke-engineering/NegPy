@@ -1,4 +1,4 @@
-name: Build and Release
+name: Build and Publish
 
 on:
   workflow_dispatch:
@@ -114,9 +114,6 @@ jobs:
           path: all-binaries
           pattern: negpy-*
           merge-multiple: true
-
-      - name: Display structure of downloaded files
-        run: ls -R all-binaries
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
